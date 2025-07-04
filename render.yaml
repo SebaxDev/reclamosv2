@@ -2,10 +2,12 @@ services:
   - type: web
     name: reclamosv2
     env: python
-    region: oregon
     plan: free
     buildCommand: ""
-    startCommand: streamlit run app.py --server.port $PORT --server.enableCORS false
+    startCommand: |
+      mkdir -p ~/.streamlit
+      cp /etc/secrets/streamlit-secrets ~/.streamlit/secrets.toml
+      streamlit run app.py --server.port $PORT --server.enableCORS false
     envVars:
       - key: STREAMLIT_SECRETS
         value: '{{ secret:streamlit-secrets }}'
