@@ -5,8 +5,8 @@ services:
     plan: free
     buildCommand: ""
     startCommand: |
-      mkdir -p ~/.streamlit
-      cp /etc/secrets/streamlit-secrets ~/.streamlit/secrets.toml
+      mkdir -p /opt/render/.streamlit
+      echo "$STREAMLIT_SECRETS" > /opt/render/.streamlit/secrets.toml
       streamlit run app.py --server.port $PORT --server.enableCORS false
     envVars:
       - key: STREAMLIT_SECRETS
