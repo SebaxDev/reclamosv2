@@ -866,7 +866,6 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
     st.markdown('<div class="section-container">', unsafe_allow_html=True)
     st.subheader("🧭 Asignación de reclamos a grupos de trabajo")
 
-    # Inicialización de variables de estado
     if "asignaciones_grupos" not in st.session_state:
         st.session_state.asignaciones_grupos = {
             "Grupo A": [],
@@ -883,11 +882,10 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
             "Grupo D": []
         }
 
-    # Seleccionar cantidad de grupos activos
     grupos_activos = st.slider("🛠️ Cantidad de grupos de trabajo activos", 1, 4, 2)
 
     st.markdown("### 👥 Asignar técnicos a cada grupo")
-    for i, grupo in enumerate(["Grupo A", "Grupo B", "Grupo C", "Grupo D"][:grupos_activos]):
+    for grupo in list(st.session_state.tecnicos_grupos.keys())[:grupos_activos]:
         st.session_state.tecnicos_grupos[grupo] = st.multiselect(
             f"{grupo} - Técnicos asignados",
             TECNICOS_DISPONIBLES,
@@ -897,22 +895,41 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
 
     st.markdown("---")
     st.markdown("### 📋 Reclamos pendientes para asignar")
-    
+
     df_pendientes = df_reclamos[df_reclamos["Estado"] == "Pendiente"].copy()
     df_pendientes["id"] = df_pendientes["Nº Cliente"].astype(str).str.strip()
-    
-    # Excluir reclamos ya asignados
+    df_pendientes["Fecha y hora"] = pd.to_datetime(df_pendientes["Fecha y hora"], errors="coerce")
+
+    orden = st.selectbox("📊 Ordenar reclamos por:", ["Fecha más reciente", "Sector", "Tipo de reclamo"])
+    if orden == "Fecha más reciente":
+        df_pendientes = df_pendientes.sort_values("Fecha y hora", ascending=False)
+    elif orden == "Sector":
+        df_pendientes = df_pendientes.sort_values("Sector")
+    elif orden == "Tipo de reclamo":
+        df_pendientes = df_pendientes.sort_values("Tipo de reclamo")
+
     asignados = [r for reclamos in st.session_state.asignaciones_grupos.values() for r in reclamos]
     df_disponibles = df_pendientes[~df_pendientes["id"].isin(asignados)]
 
     for idx, row in df_disponibles.iterrows():
         col1, col2, col3, col4, col5 = st.columns([4, 1, 1, 1, 1])
-        col1.markdown(f"📍 **Zona {row['Sector']} - {row['Tipo de reclamo']}**")
+        fecha_sola = row["Fecha y hora"].strftime("%d/%m/%Y") if pd.notnull(row["Fecha y hora"]) else "Sin fecha"
+        resumen = f"📍 Sector {row['Sector']} - {row['Tipo de reclamo'].capitalize()} - {fecha_sola}"
+        col1.markdown(f"**{resumen}**")
+
         for i, grupo in enumerate(["Grupo A", "Grupo B", "Grupo C", "Grupo D"][:grupos_activos]):
             if col2.button(f"➕ {grupo[-1]}", key=f"asignar_{grupo}_{row['id']}"):
                 if row["id"] not in asignados:
                     st.session_state.asignaciones_grupos[grupo].append(row["id"])
                     st.rerun()
+
+        with col1.expander("ℹ️ Ver detalles"):
+            st.markdown(f"**🧾 Nº Cliente:** {row['Nº Cliente']}")
+            st.markdown(f"**👤 Nombre:** {row['Nombre']}")
+            st.markdown(f"**📍 Dirección:** {row['Dirección']}")
+            st.markdown(f"**📞 Teléfono:** {row['Teléfono']}")
+            if row.get("Detalles"):
+                st.markdown(f"**📝 Detalles:** {row['Detalles'][:250]}{'...' if len(row['Detalles']) > 250 else ''}")
 
     st.markdown("---")
     st.markdown("### 🧺 Reclamos asignados por grupo")
@@ -924,9 +941,10 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
 
         if reclamos_ids:
             for reclamo_id in reclamos_ids:
-                row = df_pendientes[df_pendientes["Nº Cliente"].astype(str).str.strip() == reclamo_id].iloc[0]
+                row = df_pendientes[df_pendientes["id"] == reclamo_id].iloc[0]
+                resumen = f"📍 Sector {row['Sector']} - {row['Tipo de reclamo'].capitalize()} - {row['Fecha y hora'].strftime('%d/%m/%Y')}"
                 col1, col2 = st.columns([5, 1])
-                col1.markdown(f"📍 **Zona {row['Sector']} - {row['Tipo de reclamo']}**")
+                col1.markdown(f"**{resumen}**")
                 if col2.button("❌ Quitar", key=f"quitar_{grupo}_{reclamo_id}"):
                     st.session_state.asignaciones_grupos[grupo].remove(reclamo_id)
                     st.rerun()
@@ -935,7 +953,6 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
 
     st.markdown("---")
 
-    # Guardar cambios
     if st.button("💾 Guardar asignaciones en Google Sheets", use_container_width=True):
         actualizaciones = []
         for grupo, reclamos in st.session_state.asignaciones_grupos.items():
@@ -965,7 +982,6 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
         else:
             st.warning("⚠️ No hay asignaciones para guardar.")
 
-    # Generar PDF por grupo
     if st.button("📄 Generar PDF de asignaciones por grupo", use_container_width=True):
         with st.spinner("Generando PDF..."):
             buffer = io.BytesIO()
@@ -980,19 +996,18 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
                 if not reclamos_ids:
                     continue
 
-                # Encabezado de grupo
                 c.setFont("Helvetica-Bold", 16)
                 c.drawString(40, y, f"{grupo} - Técnicos: {', '.join(tecnicos)}")
                 y -= 25
 
                 for reclamo_id in reclamos_ids:
-                    reclamo = df_pendientes[df_pendientes["Nº Cliente"].astype(str).str.strip() == reclamo_id].iloc[0]
+                    reclamo = df_pendientes[df_pendientes["id"] == reclamo_id].iloc[0]
                     c.setFont("Helvetica-Bold", 14)
                     c.drawString(40, y, f"{reclamo['Nº Cliente']} - {reclamo['Nombre']}")
                     y -= 15
                     c.setFont("Helvetica", 11)
                     lineas = [
-                        f"Fecha: {reclamo['Fecha y hora']}",
+                        f"Fecha: {reclamo['Fecha y hora'].strftime('%d/%m/%Y %H:%M')}",
                         f"Dirección: {reclamo['Dirección']} - Tel: {reclamo['Teléfono']}",
                         f"Sector: {reclamo['Sector']} - Precinto: {reclamo.get('N° de Precinto', 'N/A')}",
                         f"Tipo: {reclamo['Tipo de reclamo']}",
@@ -1013,7 +1028,7 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
                         c.drawString(40, y, f"{grupo} (cont.)")
                         y -= 25
 
-                y -= 20  # Espacio entre grupos
+                y -= 20
 
             c.save()
             buffer.seek(0)
