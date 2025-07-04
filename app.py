@@ -912,28 +912,31 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
     df_disponibles = df_pendientes[~df_pendientes["id"].isin(asignados)]
 
     for idx, row in df_disponibles.iterrows():
-        col1, *cols_grupo = st.columns([4] + [1]*grupos_activos)
-        fecha_sola = row["Fecha y hora"].strftime("%d/%m/%Y") if pd.notnull(row["Fecha y hora"]) else "Sin fecha"
-        resumen = f"📍 Sector {row['Sector']} - {row['Tipo de reclamo'].capitalize()} - {fecha_sola}"
-        col1.markdown(f"**{resumen}**")
+        with st.container():
+            col1, *cols_grupo = st.columns([4] + [1]*grupos_activos)
+            fecha_sola = row["Fecha y hora"].strftime("%d/%m/%Y") if pd.notnull(row["Fecha y hora"]) else "Sin fecha"
+            resumen = f"📍 Sector {row['Sector']} - {row['Tipo de reclamo'].capitalize()} - {fecha_sola}"
+            col1.markdown(f"**{resumen}**")
 
-        for i, grupo in enumerate(["Grupo A", "Grupo B", "Grupo C", "Grupo D"][:grupos_activos]):
-            tecnicos = st.session_state.tecnicos_grupos[grupo]
-            tecnicos_str = ", ".join(tecnicos[:2]) + ("..." if len(tecnicos) > 2 else "") if tecnicos else "Sin técnicos"
-            boton_label = f"➕ {grupo[-1]} ({tecnicos_str})"
-            boton_color = "primary" if tecnicos else "secondary"  # azul si tiene técnicos, gris si no
-            if cols_grupo[i].button(boton_label, key=f"asignar_{grupo}_{row['id']}", type=boton_color):
-                if row["id"] not in asignados:
-                    st.session_state.asignaciones_grupos[grupo].append(row["id"])
-                    st.rerun()
+            for i, grupo in enumerate(["Grupo A", "Grupo B", "Grupo C", "Grupo D"][:grupos_activos]):
+                tecnicos = st.session_state.tecnicos_grupos[grupo]
+                tecnicos_str = ", ".join(tecnicos[:2]) + ("..." if len(tecnicos) > 2 else "") if tecnicos else "Sin técnicos"
+                boton_label = f"➕ {grupo[-1]} ({tecnicos_str})"
+                boton_color = "primary" if tecnicos else "secondary"
+                if cols_grupo[i].button(boton_label, key=f"asignar_{grupo}_{row['id']}", type=boton_color):
+                    if row["id"] not in asignados:
+                        st.session_state.asignaciones_grupos[grupo].append(row["id"])
+                        st.rerun()
 
-        with col1.expander("ℹ️ Ver detalles"):
-            st.markdown(f"**🧾 Nº Cliente:** {row['Nº Cliente']}")
-            st.markdown(f"**👤 Nombre:** {row['Nombre']}")
-            st.markdown(f"**📍 Dirección:** {row['Dirección']}")
-            st.markdown(f"**📞 Teléfono:** {row['Teléfono']}")
-            if row.get("Detalles"):
-                st.markdown(f"**📝 Detalles:** {row['Detalles'][:250]}{'...' if len(row['Detalles']) > 250 else ''}")
+            with col1.expander("ℹ️ Ver detalles"):
+                st.markdown(f"**🧾 Nº Cliente:** {row['Nº Cliente']}")
+                st.markdown(f"**👤 Nombre:** {row['Nombre']}")
+                st.markdown(f"**📍 Dirección:** {row['Dirección']}")
+                st.markdown(f"**📞 Teléfono:** {row['Teléfono']}")
+                if row.get("Detalles"):
+                    st.markdown(f"**📝 Detalles:** {row['Detalles'][:250]}{'...' if len(row['Detalles']) > 250 else ''}")
+
+            st.divider()
 
     st.markdown("---")
     st.markdown("### 🧺 Reclamos asignados por grupo")
@@ -999,6 +1002,10 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
 
                 if not reclamos_ids:
                     continue
+
+                # SALTO DE PÁGINA por grupo
+                c.showPage()
+                y = height - 40
 
                 c.setFont("Helvetica-Bold", 16)
                 c.drawString(40, y, f"{grupo} - Técnicos: {', '.join(tecnicos)}")
