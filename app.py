@@ -859,180 +859,172 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --------------------------
-# SECCIÓN 6: SEGUIMIENTO TÉCNICO
+# SECCIÓN 6: PLANIFICACIÓN DE GRUPOS DE TRABAJO
 # --------------------------
 
 elif opcion == "Seguimiento técnico" and user_role == 'admin':
     st.markdown('<div class="section-container">', unsafe_allow_html=True)
-    st.subheader("👷 Seguimiento técnico del reclamo")
-    
-    cliente_input = st.text_input("🔍 Ingresá el N° de Cliente para actualizar su reclamo", 
-                                 placeholder="Número de cliente",
-                                 key="input_seguimiento").strip()
+    st.subheader("🧭 Asignación de reclamos a grupos de trabajo")
 
-    if cliente_input:
-        df_reclamos["Nº Cliente"] = df_reclamos["Nº Cliente"].astype(str).str.strip()
-        df_filtrado = df_reclamos[
-            (df_reclamos["Nº Cliente"] == cliente_input) &
-            (df_reclamos["Estado"].isin(["Pendiente", "En curso"]))
-        ]
+    # Inicialización de variables de estado
+    if "asignaciones_grupos" not in st.session_state:
+        st.session_state.asignaciones_grupos = {
+            "Grupo A": [],
+            "Grupo B": [],
+            "Grupo C": [],
+            "Grupo D": []
+        }
 
-        if df_filtrado.empty:
-            st.warning("❕ Este cliente no tiene reclamos pendientes o en curso.")
-        else:
-            df_filtrado["Fecha y hora"] = pd.to_datetime(df_filtrado["Fecha y hora"], errors="coerce")
-            df_filtrado = df_filtrado.dropna(subset=["Fecha y hora"])
+    if "tecnicos_grupos" not in st.session_state:
+        st.session_state.tecnicos_grupos = {
+            "Grupo A": [],
+            "Grupo B": [],
+            "Grupo C": [],
+            "Grupo D": []
+        }
 
-            if df_filtrado.empty:
-                st.warning("❕ Este cliente tiene reclamos sin fecha válida. No se puede determinar el más reciente.")
-            else:
-                df_ordenado = df_filtrado.sort_values("Fecha y hora", ascending=False)
-                reclamo_actual = df_ordenado.iloc[0]
-                index_reclamo = df_ordenado.index[0] + 2  # +2 por encabezado y base 1 en Sheets
+    # Seleccionar cantidad de grupos activos
+    grupos_activos = st.slider("🛠️ Cantidad de grupos de trabajo activos", 1, 4, 2)
 
-                # Mostrar información del reclamo
-                with st.expander("📋 Información del Reclamo", expanded=True):
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.markdown(f"**📅 Fecha:** {reclamo_actual['Fecha y hora']}")
-                        st.markdown(f"**📌 Tipo:** {reclamo_actual['Tipo de reclamo']}")
-                        st.markdown(f"**📍 Dirección:** {reclamo_actual['Dirección']}")
-                    with col2:
-                        st.markdown(f"**🔒 Precinto:** {reclamo_actual.get('N° de Precinto', 'No asignado')}")
-                        st.markdown(f"**📞 Teléfono:** {reclamo_actual['Teléfono']}")
-                        st.markdown(f"**👤 Atendido por:** {reclamo_actual['Atendido por']}")
-                    
-                    st.markdown(f"**📄 Detalles:** {reclamo_actual['Detalles']}")
-
-                # Formulario de actualización
-                with st.form("actualizar_reclamo"):
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        nuevo_estado = st.selectbox(
-                            "⚙️ Cambiar estado",
-                            ["Pendiente", "En curso", "Resuelto"],
-                            index=["Pendiente", "En curso", "Resuelto"].index(reclamo_actual["Estado"]),
-                            key="select_estado"
-                        )
-                    
-                    with col2:
-                        tecnicos_actuales = [t.strip() for t in str(reclamo_actual.get("Técnico", "")).split(",") if t.strip()]
-                        tecnicos_actuales_filtrados = [
-                            t for t in TECNICOS_DISPONIBLES if t.lower() in [x.lower() for x in tecnicos_actuales]
-                        ]
-
-                        nuevos_tecnicos = st.multiselect(
-                            "👷 Técnicos asignados",
-                            TECNICOS_DISPONIBLES,
-                            default=tecnicos_actuales_filtrados,
-                            key="multiselect_tecnicos"
-                        )
-
-                    actualizar = st.form_submit_button("💾 Actualizar reclamo", use_container_width=True)
-
-                if actualizar:
-                    if not nuevos_tecnicos and nuevo_estado == "En curso":
-                        st.warning("⚠️ Debes asignar al menos un técnico para marcar como 'En curso'.")
-                    else:
-                        with st.spinner("Actualizando reclamo..."):
-                            try:
-                                updates = [
-                                    {"range": f"I{index_reclamo}", "values": [[nuevo_estado]]},
-                                    {"range": f"J{index_reclamo}", "values": [[", ".join(nuevos_tecnicos).upper()]]}
-                                ]
-                                
-                                success, error = api_manager.safe_sheet_operation(
-                                    batch_update_sheet,
-                                    sheet_reclamos,
-                                    updates,
-                                    is_batch=True
-                                )
-                                
-                                if success:
-                                    st.success("✅ Reclamo actualizado correctamente.")
-                                    st.cache_data.clear()
-                                    time.sleep(1)
-                                    st.rerun()
-                                else:
-                                    st.error(f"❌ Error al actualizar: {error}")
-                                    
-                            except Exception as e:
-                                st.error(f"❌ Error inesperado: {str(e)}")
-
-    # --- IMPRIMIR RECLAMOS EN CURSO ---
-    st.markdown("---")
-    st.markdown("### 🖨️ Imprimir reclamos 'En curso' (vista compacta optimizada)")
-
-    reclamos_en_curso = df_reclamos[df_reclamos["Estado"] == "En curso"].copy()
-
-    if reclamos_en_curso.empty:
-        st.info("No hay reclamos en curso para imprimir.")
-    else:
-        reclamos_en_curso["Fecha y hora"] = pd.to_datetime(reclamos_en_curso["Fecha y hora"], errors="coerce")
-        reclamos_en_curso = reclamos_en_curso.dropna(subset=["Fecha y hora"])
-        reclamos_en_curso = reclamos_en_curso.sort_values("Fecha y hora", ascending=False)
-
-        st.dataframe(
-            reclamos_en_curso[["Nº Cliente", "Nombre", "Tipo de reclamo", "Técnico", "Fecha y hora"]],
-            use_container_width=True,
-            height=400
+    st.markdown("### 👥 Asignar técnicos a cada grupo")
+    for i, grupo in enumerate(["Grupo A", "Grupo B", "Grupo C", "Grupo D"][:grupos_activos]):
+        st.session_state.tecnicos_grupos[grupo] = st.multiselect(
+            f"{grupo} - Técnicos asignados",
+            TECNICOS_DISPONIBLES,
+            default=st.session_state.tecnicos_grupos[grupo],
+            key=f"tecnicos_{grupo}"
         )
 
-        if st.button("📄 Generar PDF de reclamos en curso", key="pdf_en_curso"):
-            with st.spinner("Generando PDF optimizado..."):
-                buffer = io.BytesIO()
-                c = canvas.Canvas(buffer, pagesize=A4)
-                width, height = A4
+    st.markdown("---")
+    st.markdown("### 📋 Reclamos pendientes para asignar")
+    
+    df_pendientes = df_reclamos[df_reclamos["Estado"] == "Pendiente"].copy()
+    df_pendientes["id"] = df_pendientes["Nº Cliente"].astype(str).str.strip()
+    
+    # Excluir reclamos ya asignados
+    asignados = [r for reclamos in st.session_state.asignaciones_grupos.values() for r in reclamos]
+    df_disponibles = df_pendientes[~df_pendientes["id"].isin(asignados)]
 
-                x_left = 40
-                x_right = width / 2 + 10
-                y = height - 40
-                columna_izquierda = True
+    for idx, row in df_disponibles.iterrows():
+        col1, col2, col3, col4, col5 = st.columns([4, 1, 1, 1, 1])
+        col1.markdown(f"📍 **Zona {row['Sector']} - {row['Tipo de reclamo']}**")
+        for i, grupo in enumerate(["Grupo A", "Grupo B", "Grupo C", "Grupo D"][:grupos_activos]):
+            if col2.button(f"➕ {grupo[-1]}", key=f"asignar_{grupo}_{row['id']}"):
+                if row["id"] not in asignados:
+                    st.session_state.asignaciones_grupos[grupo].append(row["id"])
+                    st.rerun()
 
-                # Encabezado
-                c.setFont("Helvetica-Bold", 14)
-                c.drawString(x_left, y, "RECLAMOS EN CURSO - " + datetime.now().strftime("%d/%m/%Y"))
-                y -= 30
+    st.markdown("---")
+    st.markdown("### 🧺 Reclamos asignados por grupo")
 
-                for idx, reclamo in reclamos_en_curso.iterrows():
-                    x = x_left if columna_izquierda else x_right
+    for grupo in ["Grupo A", "Grupo B", "Grupo C", "Grupo D"][:grupos_activos]:
+        reclamos_ids = st.session_state.asignaciones_grupos[grupo]
+        tecnicos = st.session_state.tecnicos_grupos[grupo]
+        st.markdown(f"#### 🛠️ {grupo} - Técnicos: {', '.join(tecnicos) if tecnicos else 'Sin asignar'} ({len(reclamos_ids)} reclamos)")
 
-                    # Fuente más pequeña para más información
-                    c.setFont("Helvetica-Bold", 10)
-                    c.drawString(x, y, f"{reclamo['Nº Cliente']} - {reclamo['Nombre']}")
-                    y -= 12
-                    
-                    c.setFont("Helvetica", 8)
-                    c.drawString(x, y, f"📅 {reclamo['Fecha y hora'].strftime('%d/%m %H:%M')}")
-                    y -= 10
-                    c.drawString(x, y, f"📌 {reclamo['Tipo de reclamo']}")
-                    y -= 10
-                    c.drawString(x, y, f"👷 {reclamo['Técnico']}")
+        if reclamos_ids:
+            for reclamo_id in reclamos_ids:
+                row = df_pendientes[df_pendientes["Nº Cliente"].astype(str).str.strip() == reclamo_id].iloc[0]
+                col1, col2 = st.columns([5, 1])
+                col1.markdown(f"📍 **Zona {row['Sector']} - {row['Tipo de reclamo']}**")
+                if col2.button("❌ Quitar", key=f"quitar_{grupo}_{reclamo_id}"):
+                    st.session_state.asignaciones_grupos[grupo].remove(reclamo_id)
+                    st.rerun()
+        else:
+            st.info("Este grupo no tiene reclamos asignados.")
+
+    st.markdown("---")
+
+    # Guardar cambios
+    if st.button("💾 Guardar asignaciones en Google Sheets", use_container_width=True):
+        actualizaciones = []
+        for grupo, reclamos in st.session_state.asignaciones_grupos.items():
+            tecnicos = st.session_state.tecnicos_grupos[grupo]
+            for reclamo_id in reclamos:
+                idx = df_reclamos[df_reclamos["Nº Cliente"].astype(str).str.strip() == reclamo_id].index
+                if not idx.empty:
+                    row_idx = idx[0] + 2  # +2 por encabezado
+                    actualizaciones.append({"range": f"I{row_idx}", "values": [["En curso"]]})
+                    actualizaciones.append({"range": f"J{row_idx}", "values": [[", ".join(tecnicos).upper()]]})
+
+        if actualizaciones:
+            with st.spinner("Actualizando en Sheets..."):
+                success, error = api_manager.safe_sheet_operation(
+                    batch_update_sheet,
+                    sheet_reclamos,
+                    actualizaciones,
+                    is_batch=True
+                )
+                if success:
+                    st.success("✅ Reclamos actualizados como 'En curso'")
+                    st.cache_data.clear()
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error(f"❌ Error: {error}")
+        else:
+            st.warning("⚠️ No hay asignaciones para guardar.")
+
+    # Generar PDF por grupo
+    if st.button("📄 Generar PDF de asignaciones por grupo", use_container_width=True):
+        with st.spinner("Generando PDF..."):
+            buffer = io.BytesIO()
+            c = canvas.Canvas(buffer, pagesize=A4)
+            width, height = A4
+            y = height - 40
+
+            for grupo in ["Grupo A", "Grupo B", "Grupo C", "Grupo D"][:grupos_activos]:
+                reclamos_ids = st.session_state.asignaciones_grupos[grupo]
+                tecnicos = st.session_state.tecnicos_grupos[grupo]
+
+                if not reclamos_ids:
+                    continue
+
+                # Encabezado de grupo
+                c.setFont("Helvetica-Bold", 16)
+                c.drawString(40, y, f"{grupo} - Técnicos: {', '.join(tecnicos)}")
+                y -= 25
+
+                for reclamo_id in reclamos_ids:
+                    reclamo = df_pendientes[df_pendientes["Nº Cliente"].astype(str).str.strip() == reclamo_id].iloc[0]
+                    c.setFont("Helvetica-Bold", 14)
+                    c.drawString(40, y, f"{reclamo['Nº Cliente']} - {reclamo['Nombre']}")
                     y -= 15
-                    
-                    if not columna_izquierda:
-                        y -= 5
-                    columna_izquierda = not columna_izquierda
+                    c.setFont("Helvetica", 11)
+                    lineas = [
+                        f"Fecha: {reclamo['Fecha y hora']}",
+                        f"Dirección: {reclamo['Dirección']} - Tel: {reclamo['Teléfono']}",
+                        f"Sector: {reclamo['Sector']} - Precinto: {reclamo.get('N° de Precinto', 'N/A')}",
+                        f"Tipo: {reclamo['Tipo de reclamo']}",
+                        f"Detalles: {reclamo['Detalles'][:100]}..." if len(reclamo['Detalles']) > 100 else f"Detalles: {reclamo['Detalles']}",
+                    ]
+                    for linea in lineas:
+                        c.drawString(40, y, linea)
+                        y -= 12
 
-                    if y < 60:
+                    y -= 8
+                    c.line(40, y, width - 40, y)
+                    y -= 15
+
+                    if y < 100:
                         c.showPage()
                         y = height - 40
-                        columna_izquierda = True
-                        c.setFont("Helvetica-Bold", 14)
-                        c.drawString(x_left, y, "RECLAMOS EN CURSO (cont.) - " + datetime.now().strftime("%d/%m/%Y"))
-                        y -= 30
+                        c.setFont("Helvetica-Bold", 16)
+                        c.drawString(40, y, f"{grupo} (cont.)")
+                        y -= 25
 
-                c.save()
-                buffer.seek(0)
-                
-                st.download_button(
-                    label="📥 Descargar PDF optimizado",
-                    data=buffer,
-                    file_name="reclamos_en_curso.pdf",
-                    mime="application/pdf"
-                )
-    
+                y -= 20  # Espacio entre grupos
+
+            c.save()
+            buffer.seek(0)
+
+            st.download_button(
+                label="📥 Descargar PDF de asignaciones",
+                data=buffer,
+                file_name="asignaciones_grupos.pdf",
+                mime="application/pdf"
+            )
+
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --------------------------
