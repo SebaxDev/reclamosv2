@@ -43,7 +43,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 1. Función para detectar modo oscuro del sistema 
+# Función para detectar el modo oscuro del sistema
 def is_system_dark_mode():
     import platform
     if platform.system() == "Windows":
@@ -54,30 +54,34 @@ def is_system_dark_mode():
             return value == 0  # 0 = oscuro, 1 = claro
         except:
             return False
-    elif platform.system() == "Darwin":  # macOS
+    elif platform.system() == "Darwin":
         import subprocess
         try:
             result = subprocess.run(['defaults', 'read', '-g', 'AppleInterfaceStyle'], capture_output=True, text=True)
             return "Dark" in result.stdout
         except:
             return False
-    else:  # Linux/otros
-        return False
+    else:
+        return False  # Linux u otros
 
-# 2. Inicializar modo oscuro
-if 'modo_oscuro' not in st.session_state:
-    st.session_state.modo_oscuro = is_system_dark_mode()
+# Inicializar modo oscuro si no está en sesión
+if "modo_oscuro" not in st.session_state:
+    sistema_oscuro = is_system_dark_mode()
+    st.session_state.modo_oscuro = sistema_oscuro
 
-# 3. Sidebar con toggle
+# Sidebar con toggle para cambiar modo
 with st.sidebar:
-    st.session_state.modo_oscuro = st.toggle(
+    nuevo_modo = st.toggle(
         "🌙 Modo oscuro",
         value=st.session_state.modo_oscuro,
         key="dark_mode_toggle"
     )
+    if nuevo_modo != st.session_state.modo_oscuro:
+        st.session_state.modo_oscuro = nuevo_modo
+        st.rerun()
     show_user_widget()
 
-# 4. Aplicar estilos
+# Aplicar estilos personalizados según modo
 st.markdown(get_main_styles(dark_mode=st.session_state.modo_oscuro), unsafe_allow_html=True)
 
 # --------------------------
