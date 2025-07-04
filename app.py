@@ -912,13 +912,17 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
     df_disponibles = df_pendientes[~df_pendientes["id"].isin(asignados)]
 
     for idx, row in df_disponibles.iterrows():
-        col1, col2, col3, col4, col5 = st.columns([4, 1, 1, 1, 1])
+        col1, *cols_grupo = st.columns([4] + [1]*grupos_activos)
         fecha_sola = row["Fecha y hora"].strftime("%d/%m/%Y") if pd.notnull(row["Fecha y hora"]) else "Sin fecha"
         resumen = f"📍 Sector {row['Sector']} - {row['Tipo de reclamo'].capitalize()} - {fecha_sola}"
         col1.markdown(f"**{resumen}**")
 
         for i, grupo in enumerate(["Grupo A", "Grupo B", "Grupo C", "Grupo D"][:grupos_activos]):
-            if col2.button(f"➕ {grupo[-1]}", key=f"asignar_{grupo}_{row['id']}"):
+            tecnicos = st.session_state.tecnicos_grupos[grupo]
+            tecnicos_str = ", ".join(tecnicos[:2]) + ("..." if len(tecnicos) > 2 else "") if tecnicos else "Sin técnicos"
+            boton_label = f"➕ {grupo[-1]} ({tecnicos_str})"
+            boton_color = "primary" if tecnicos else "secondary"  # azul si tiene técnicos, gris si no
+            if cols_grupo[i].button(boton_label, key=f"asignar_{grupo}_{row['id']}", type=boton_color):
                 if row["id"] not in asignados:
                     st.session_state.asignaciones_grupos[grupo].append(row["id"])
                     st.rerun()
@@ -960,7 +964,7 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
             for reclamo_id in reclamos:
                 idx = df_reclamos[df_reclamos["Nº Cliente"].astype(str).str.strip() == reclamo_id].index
                 if not idx.empty:
-                    row_idx = idx[0] + 2  # +2 por encabezado
+                    row_idx = idx[0] + 2
                     actualizaciones.append({"range": f"I{row_idx}", "values": [["En curso"]]})
                     actualizaciones.append({"range": f"J{row_idx}", "values": [[", ".join(tecnicos).upper()]]})
 
