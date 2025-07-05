@@ -577,6 +577,7 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
                     c.line(40, y, width - 40, y)
                     y -= 15
                     if y < 100:
+                        agregar_pie_pdf(c, width, height)
                         c.showPage()
                         y = height - 40
 
@@ -864,6 +865,7 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
                             y -= 15
                             
                             if y < 100 and i < len(reclamos_filtrados) - 1:
+                                agregar_pie_pdf(c, width, height)
                                 c.showPage()
                                 y = height - 40
                                 c.setFont("Helvetica-Bold", 18)
@@ -932,6 +934,7 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
                     y -= 15
                     
                     if y < 100 and i < len(selected) - 1:
+                        agregar_pie_pdf(c, width, height)
                         c.showPage()
                         y = height - 40
                         c.setFont("Helvetica-Bold", 18)
@@ -990,6 +993,7 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
                         y -= 15
 
                         if y < 100:
+                            agregar_pie_pdf(c, width, height)
                             c.showPage()
                             y = height - 40
                             c.setFont("Helvetica-Bold", 18)
@@ -1160,6 +1164,7 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
                     continue
 
                 # SALTO DE PÁGINA por grupo
+                agregar_pie_pdf(c, width, height)
                 c.showPage()
                 y = height - 40
 
@@ -1189,6 +1194,7 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
                     y -= 15
 
                     if y < 100:
+                        agregar_pie_pdf(c, width, height)
                         c.showPage()
                         y = height - 40
                         c.setFont("Helvetica-Bold", 16)
