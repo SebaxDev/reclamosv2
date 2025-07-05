@@ -1,220 +1,167 @@
-# 📋 Fusion Reclamos App
+# Fusion Reclamos App - Sistema de Gestión de Reclamos
 
-Una aplicación moderna y optimizada para la gestión de reclamos técnicos, desarrollada con Streamlit y Google Sheets como base de datos.
+## 📌 Descripción
 
-## ✨ Características
+Fusion Reclamos App es una aplicación web desarrollada con Streamlit para la gestión integral de reclamos de servicios públicos. La aplicación permite:
 
-- 🔐 **Sistema de autenticación** seguro
-- 📊 **Dashboard de métricas** en tiempo real
-- 🗂️ **Gestión completa de reclamos** (crear, editar, seguimiento, cierre)
-- 👥 **Administración de clientes** con historial completo
-- 🖨️ **Generación de PDFs** para técnicos
-- 📱 **Diseño responsive** y moderno
-- ⚡ **Control de API** para evitar bloqueos
-- 🎨 **Interfaz intuitiva** con animaciones
+- 🆕 Registrar nuevos reclamos con validación de clientes existentes
+- 📋 Visualizar y gestionar reclamos activos
+- 👥 Asignar técnicos y grupos de trabajo
+- ✅ Cierre y seguimiento de reclamos
+- 📊 Generación de reportes en PDF
+- 📈 Dashboard con métricas clave
 
-## 🚀 Instalación
+## 🚀 Características principales
 
-### Prerrequisitos
+- **Autenticación de usuarios** con diferentes niveles de permisos
+- **Integración con Google Sheets** como base de datos
+- **Modo oscuro/claro** adaptable al sistema
+- **Interfaz intuitiva** con navegación por secciones
+- **Generación de PDFs** para impresión y distribución
+- **Sistema de asignación** de reclamos a grupos de técnicos
+- **Validación en tiempo real** de reclamos duplicados
+- **Historial completo** por cliente
 
-- Python 3.8 o superior
-- Cuenta de Google con acceso a Google Sheets API
-- Streamlit
+## 🛠️ Tecnologías utilizadas
 
-### Configuración
+- ![Python](https://img.shields.io/badge/Python-3.9+-blue?logo=python)
+- ![Streamlit](https://img.shields.io/badge/Streamlit-1.25+-FF4B4B?logo=streamlit)
+- ![Google Sheets API](https://img.shields.io/badge/Google_Sheets_API-v4-34A853?logo=google-sheets)
+- ![Pandas](https://img.shields.io/badge/Pandas-1.5+-150458?logo=pandas)
+- ![ReportLab](https://img.shields.io/badge/ReportLab-3.6+-000000)
 
-1. **Clonar el repositorio:**
-```bash
-git clone https://github.com/tu-usuario/fusion-reclamos-app.git
-cd fusion-reclamos-app
-```
+## 📦 Instalación y configuración
 
-2. **Instalar dependencias:**
-```bash
-pip install -r requirements.txt
-```
+### Requisitos previos
+- Python 3.9 o superior
+- Cuenta de Google Cloud Platform con Sheets API habilitada
+- Archivo de credenciales de servicio de Google Cloud
 
-3. **Configurar Google Sheets API:**
-   - Crear un proyecto en [Google Cloud Console](https://console.cloud.google.com/)
-   - Habilitar Google Sheets API y Google Drive API
-   - Crear credenciales de cuenta de servicio
-   - Descargar el archivo JSON de credenciales
+### Pasos para instalar
 
-4. **Configurar secrets.toml:**
-```bash
-mkdir .streamlit
-```
+1. Clonar el repositorio:
+   ```bash
+   git clone https://github.com/tu-usuario/fusion-reclamos-app.git
+   cd fusion-reclamos-app
+   ```
 
-Crear el archivo `.streamlit/secrets.toml`:
-```toml
-[gcp_service_account]
-type = "service_account"
-project_id = "tu-project-id"
-private_key_id = "tu-private-key-id"
-private_key = "-----BEGIN PRIVATE KEY-----\ntu-private-key\n-----END PRIVATE KEY-----\n"
-client_email = "tu-service-account@tu-project.iam.gserviceaccount.com"
-client_id = "tu-client-id"
-auth_uri = "https://accounts.google.com/o/oauth2/auth"
-token_uri = "https://oauth2.googleapis.com/token"
-auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs"
-client_x509_cert_url = "https://www.googleapis.com/robot/v1/metadata/x509/tu-service-account%40tu-project.iam.gserviceaccount.com"
+2. Crear y activar entorno virtual:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # Linux/Mac
+   venv\Scripts\activate     # Windows
+   ```
 
-[auth]
-admin = "tu-password-admin"
-tecnico = "tu-password-tecnico"
-```
+3. Instalar dependencias:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-5. **Configurar Google Sheets:**
-   - Crear una hoja de cálculo en Google Sheets
-   - Compartir con el email de la cuenta de servicio
-   - Crear dos hojas: "Principal" (reclamos) y "Clientes"
-   - Actualizar el SHEET_ID en `config/settings.py`
+4. Configurar credenciales:
+   - Crear archivo `.streamlit/secrets.toml` con las credenciales de Google Sheets:
+     ```toml
+     [gcp_service_account]
+     type = "service_account"
+     project_id = "tu-project-id"
+     private_key_id = "tu-private-key-id"
+     private_key = "-----BEGIN PRIVATE KEY-----\ntu-clave-privada\n-----END PRIVATE KEY-----\n"
+     client_email = "tu-service-account@tu-project.iam.gserviceaccount.com"
+     client_id = "tu-client-id"
+     auth_uri = "https://accounts.google.com/o/oauth2/auth"
+     token_uri = "https://oauth2.googleapis.com/token"
+     auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs"
+     client_x509_cert_url = "https://www.googleapis.com/robot/v1/metadata/x509/tu-service-account%40tu-project.iam.gserviceaccount.com"
+     ```
 
-## 🏃‍♂️ Uso
+5. Configurar IDs de Google Sheets:
+   - Editar `config/settings.py` con los IDs de tus hojas de cálculo
 
-```bash
-streamlit run app.py
-```
+6. Ejecutar la aplicación:
+   ```bash
+   streamlit run app.py
+   ```
 
-La aplicación estará disponible en `http://localhost:8501`
+## 🖥️ Uso de la aplicación
 
-## 📁 Estructura del Proyecto
+### Secciones principales
+
+1. **Inicio - Nuevo reclamo**
+   - Registro de nuevos reclamos con validación de cliente existente
+   - Bloqueo de múltiples reclamos activos para un mismo cliente
+   - Carga automática de datos de clientes existentes
+
+2. **Reclamos cargados**
+   - Visualización de reclamos con filtros avanzados
+   - Edición manual de reclamos
+   - Gestión de estados (Pendiente/En curso/Resuelto)
+   - Manejo especial de "Desconexiones a pedido"
+
+3. **Historial por cliente**
+   - Búsqueda por número de cliente
+   - Visualización de todos los reclamos asociados
+   - Exportación a CSV
+
+4. **Editar cliente** (solo admin)
+   - Modificación de datos de clientes existentes
+   - Registro de nuevos clientes
+
+5. **Imprimir reclamos**
+   - Generación de PDFs por tipo de reclamo
+   - Selección manual de reclamos para impresión
+   - Exportación de todos los reclamos activos
+
+6. **Seguimiento técnico** (solo admin)
+   - Asignación de reclamos a grupos de trabajo
+   - Designación de técnicos por grupo
+   - Generación de PDFs por grupo asignado
+
+7. **Cierre de Reclamos** (solo admin)
+   - Cambio de estado a "Resuelto"
+   - Actualización de precintos
+   - Devolver reclamos a estado "Pendiente"
+
+## 👥 Roles y permisos
+
+- **Administrador**: Acceso completo a todas las funciones
+- **Usuario estándar**: Puede cargar reclamos y ver información
+- **Técnico**: Acceso limitado a funciones de seguimiento
+
+## 📊 Estructura del proyecto
 
 ```
 fusion-reclamos-app/
-├── app.py                     # Aplicación principal
-├── requirements.txt           # Dependencias
-├── components/               # Componentes modulares
-│   ├── auth.py              # Autenticación
-│   ├── navigation.py        # Navegación
-│   └── metrics_dashboard.py # Dashboard
-├── config/                  # Configuración
-│   └── settings.py         # Configuraciones centrales
-└── utils/                  # Utilidades
-    ├── api_manager.py      # Gestor de API
-    ├── data_manager.py     # Gestor de datos
-    └── styles.py          # Estilos CSS
-```
-
-## 🔧 Configuración Avanzada
-
-### Variables de Entorno
-
-Puedes configurar las siguientes variables en `config/settings.py`:
-
-- `SHEET_ID`: ID de tu Google Sheet
-- `API_DELAY`: Tiempo entre llamadas a la API (default: 1.5s)
-- `BATCH_DELAY`: Tiempo entre operaciones batch (default: 2.0s)
-- `TECNICOS_DISPONIBLES`: Lista de técnicos
-- `TIPOS_RECLAMO`: Tipos de reclamos disponibles
-
-### Personalización
-
-- **Estilos**: Modifica `utils/styles.py` para cambiar la apariencia
-- **Componentes**: Agrega nuevos componentes en la carpeta `components/`
-- **Configuración**: Ajusta parámetros en `config/settings.py`
-
-## 📊 Funcionalidades
-
-### 🏠 Inicio
-- Cargar nuevos reclamos
-- Validación de clientes existentes
-- Prevención de reclamos duplicados
-
-### 📊 Reclamos Cargados
-- Vista completa de todos los reclamos
-- Filtros por estado, sector y tipo
-- Editor de datos en tiempo real
-- Métricas por tipo de reclamo
-
-### 📜 Historial por Cliente
-- Búsqueda por número de cliente
-- Historial completo ordenado por fecha
-- Información detallada del cliente
-
-### ✏️ Editar Cliente
-- Modificar datos existentes
-- Agregar nuevos clientes
-- Validaciones de integridad
-
-### 🖨️ Imprimir Reclamos
-- Filtrado por tipo de reclamo
-- Selección manual de reclamos
-- Generación de PDFs optimizados
-- Formato técnico compacto
-
-### 👷 Seguimiento Técnico
-- Actualización de estados
-- Asignación de técnicos
-- Vista de reclamos en curso
-- PDFs optimizados para técnicos
-
-### ✅ Cierre de Reclamos
-- Cierre masivo por técnico
-- Actualización de precintos
-- Reversión a estado pendiente
-
-## 🛡️ Seguridad
-
-- Autenticación basada en secrets
-- Control de acceso por usuario
-- Validación de datos de entrada
-- Rate limiting para API calls
-
-## 🚀 Despliegue
-
-### Streamlit Cloud
-
-1. Subir el código a GitHub
-2. Conectar con Streamlit Cloud
-3. Configurar secrets en la interfaz web
-4. Desplegar automáticamente
-
-### Docker (Opcional)
-
-```dockerfile
-FROM python:3.9-slim
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-
-EXPOSE 8501
-
-CMD ["streamlit", "run", "app.py"]
+├── app.py                # Aplicación principal
+├── components/           # Componentes reutilizables
+│   ├── auth.py           # Autenticación
+│   ├── navigation.py     # Navegación
+│   └── metrics.py        # Dashboard de métricas
+├── config/
+│   └── settings.py       # Configuraciones
+├── utils/
+│   ├── data_manager.py   # Manejo de datos
+│   ├── styles.py         # Estilos CSS
+│   └── api_manager.py    # Gestión de API
+├── requirements.txt      # Dependencias
+└── .streamlit/
+    └── secrets.toml      # Credenciales
 ```
 
 ## 🤝 Contribución
 
-1. Fork el proyecto
-2. Crear una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abrir un Pull Request
+Las contribuciones son bienvenidas. Por favor, sigue estos pasos:
 
-## 📝 Licencia
+1. Haz un fork del proyecto
+2. Crea una rama con tu feature (`git checkout -b feature/AmazingFeature`)
+3. Haz commit de tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Haz push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
 
-Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más detalles.
+## 📄 Licencia
 
-## 📞 Soporte
+Distribuido bajo la licencia MIT. Consulta el archivo `LICENSE` para más información.
 
-Para soporte técnico o consultas:
-- Crear un issue en GitHub
-- Contactar al equipo de desarrollo
+## ✉️ Contacto
 
-## 🔄 Changelog
+---
 
-### v2.0.0 (Actual)
-- ✨ Arquitectura modular completa
-- 🎨 Interfaz rediseñada con animaciones
-- ⚡ Control optimizado de API
-- 📊 Dashboard de métricas mejorado
-- 🖨️ Sistema de PDFs avanzado
-- 🔐 Sistema de autenticación robusto
-
-### v1.0.0
-- 📋 Funcionalidades básicas de gestión
-- 🗂️ Integración con Google Sheets
-- 📄 Generación básica de reportes
+Hecho con ❤️ usando Streamlit
