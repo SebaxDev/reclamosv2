@@ -1442,12 +1442,20 @@ elif opcion == "Cierre de Reclamos" and user_role == 'admin':
                 st.markdown(f"📌 **Reclamo encontrado:** {reclamo['Tipo de reclamo']} - Estado: {reclamo['Estado']}")
                 st.markdown(f"👷 Técnico actual: `{reclamo['Técnico'] or 'No asignado'}`")
 
-                nuevo_tecnico = st.text_input("👷 Nuevo técnico asignado (usar coma para varios)", value=reclamo['Técnico'], key="nuevo_tecnico_input")
+                tecnicos_actuales = [t.strip() for t in reclamo["Técnico"].split(",") if t.strip()]
+                nuevo_tecnico_multiselect = st.multiselect(
+                    "👷 Nuevo técnico asignado",
+                    options=TECNICOS_DISPONIBLES,
+                    default=tecnicos_actuales,
+                    key="nuevo_tecnico_input"
+                )
 
                 if st.button("💾 Guardar nuevo técnico", key="guardar_tecnico"):
                     try:
                         fila_index = reclamo.name + 2
-                        updates = [{"range": f"J{fila_index}", "values": [[nuevo_tecnico.upper()]]}]
+                        nuevo_tecnico = ", ".join(nuevo_tecnico_multiselect).upper()
+
+                        updates = [{"range": f"J{fila_index}", "values": [[nuevo_tecnico]]}]
 
                         if reclamo['Estado'] == "Pendiente":
                             updates.append({"range": f"I{fila_index}", "values": [["En curso"]]})
