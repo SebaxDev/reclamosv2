@@ -303,25 +303,21 @@ if opcion == "Inicio" and has_permission('inicio'):
                                 )
                                 if success_cliente:
                                     cliente_nuevo = True
+
+                            st.cache_data.clear()
+                            time.sleep(5)
+                            st.rerun()
                         else:
                             st.error(f"❌ Error al guardar: {error}")
                     except Exception as e:
                         st.error(f"❌ Error inesperado: {str(e)}")
-
-        if reclamo_guardado:
-            if cliente_nuevo:
-                st.info("🗂️ Nuevo cliente agregado a la base de datos.")
-
-            st.markdown("---")
-            if st.button("✅ Listo", use_container_width=True):
-                st.cache_data.clear()
-                st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --------------------------
 # SECCIÓN 2: RECLAMOS CARGADOS
 # ----------------------------
+
 elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
     st.markdown('<div class="section-container">', unsafe_allow_html=True)
     st.subheader("📊 Gestión de reclamos cargados")
@@ -392,7 +388,7 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
 
         st.markdown(f"**Mostrando {len(df_filtrado)} reclamos**")
 
-        columnas_visibles = ["Fecha y hora", "Nº Cliente", "Nombre", "Sector", "Tipo de reclamo", "Teléfono"]
+        columnas_visibles = ["Fecha y hora", "Nº Cliente", "Nombre", "Sector", "Tipo de reclamo", "Teléfono", "Estado"]
         st.dataframe(df_filtrado[columnas_visibles], use_container_width=True, hide_index=True)
 
         # === FORMULARIO DE EDICIÓN MANUAL ===
@@ -408,43 +404,137 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
         if selector:
             nro_cliente = selector.split(" - ")[0]
             reclamo_actual = df[df["Nº Cliente"] == nro_cliente].iloc[0]
-
+            
+            # Mostrar estado actual
+            estado_actual = reclamo_actual.get("Estado", "")
+            st.markdown(f"**Estado actual:** {estado_actual}")
+            
             nueva_direccion = st.text_input("Dirección", value=reclamo_actual.get("Dirección", ""))
             nuevo_telefono = st.text_input("Teléfono", value=reclamo_actual.get("Teléfono", ""))
             nuevo_tipo = st.selectbox("Tipo de reclamo", sorted(df["Tipo de reclamo"].unique()), 
                                       index=sorted(df["Tipo de reclamo"].unique()).index(reclamo_actual["Tipo de reclamo"]))
             nuevos_detalles = st.text_area("Detalles del reclamo", value=reclamo_actual.get("Detalles", ""), height=100)
             nuevo_precinto = st.text_input("N° de Precinto", value=reclamo_actual.get("N° de Precinto", ""))
-
-            if st.button("💾 Guardar cambios", key="guardar_reclamo_individual", use_container_width=True):
-                with st.spinner("Guardando cambios..."):
-                    try:
-                        idx_original = df[df["Nº Cliente"] == nro_cliente].index[0]
-
-                        df.loc[idx_original, "Dirección"] = nueva_direccion
-                        df.loc[idx_original, "Teléfono"] = nuevo_telefono
-                        df.loc[idx_original, "Tipo de reclamo"] = nuevo_tipo
-                        df.loc[idx_original, "Detalles"] = nuevos_detalles
-                        df.loc[idx_original, "N° de Precinto"] = nuevo_precinto
-
-                        df = df.astype(str)
-                        data_to_update = [df.columns.tolist()] + df.values.tolist()
-
-                        success, error = api_manager.safe_sheet_operation(
-                            sheet_reclamos.update,
-                            data_to_update,
-                            is_batch=True
-                        )
-
-                        if success:
-                            st.success("✅ Reclamo actualizado correctamente.")
-                            st.cache_data.clear()
-                            time.sleep(1)
-                            st.rerun()
-                        else:
-                            st.error(f"❌ Error al guardar: {error}")
-                    except Exception as e:
-                        st.error(f"❌ Error al procesar: {str(e)}")
+            
+            # Nuevo campo para cambiar estado
+            if estado_actual == "Resuelto":
+                nuevo_estado = st.selectbox("Cambiar estado a:", ["Resuelto", "Pendiente", "En curso"])
+            else:
+                nuevo_estado = estado_actual
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                if st.button("💾 Guardar cambios", key="guardar_reclamo_individual", use_container_width=True):
+                    with st.spinner("Guardando cambios..."):
+                        try:
+                            idx_original = df[df["Nº Cliente"] == nro_cliente].index[0]
+                            
+                            updates = {
+                                "Dirección": nueva_direccion,
+                                "Teléfono": nuevo_telefono,
+                                "Tipo de reclamo": nuevo_tipo,
+                                "Detalles": nuevos_detalles,
+                                "N° de Precinto": nuevo_precinto
+                            }
+                            
+                            # Si el estado cambió
+                            if nuevo_estado != estado_actual:
+                                updates["Estado"] = nuevo_estado
+                                if nuevo_estado == "Pendiente":
+                                    updates["Técnico"] = ""  # Limpiar técnico si vuelve a pendiente
+                            
+                            # Actualizar el dataframe local
+                            for col, val in updates.items():
+                                df.loc[idx_original, col] = val
+                            
+                            # Preparar datos para actualizar en Google Sheets
+                            df = df.astype(str)
+                            data_to_update = [df.columns.tolist()] + df.values.tolist()
+                            
+                            success, error = api_manager.safe_sheet_operation(
+                                sheet_reclamos.update,
+                                data_to_update,
+                                is_batch=True
+                            )
+                            
+                            if success:
+                                st.success("✅ Reclamo actualizado correctamente.")
+                                st.cache_data.clear()
+                                time.sleep(5)
+                                st.rerun()
+                            else:
+                                st.error(f"❌ Error al guardar: {error}")
+                        except Exception as e:
+                            st.error(f"❌ Error al procesar: {str(e)}")
+            
+            with col2:
+                if st.button("🔄 Cambiar estado", key="cambiar_estado", use_container_width=True, 
+                            disabled=estado_actual not in ["Resuelto", "Pendiente", "En curso"]):
+                    with st.spinner("Actualizando estado..."):
+                        try:
+                            idx_original = df[df["Nº Cliente"] == nro_cliente].index[0]
+                            
+                            # Lógica para cambiar estado
+                            if estado_actual == "Resuelto":
+                                nuevo_estado = "Pendiente"
+                            elif estado_actual == "Pendiente":
+                                nuevo_estado = "En curso"
+                            else:  # "En curso"
+                                nuevo_estado = "Resuelto"
+                            
+                            df.loc[idx_original, "Estado"] = nuevo_estado
+                            
+                            # Si vuelve a pendiente, limpiar técnico
+                            if nuevo_estado == "Pendiente":
+                                df.loc[idx_original, "Técnico"] = ""
+                            
+                            # Actualizar en Google Sheets
+                            df = df.astype(str)
+                            data_to_update = [df.columns.tolist()] + df.values.tolist()
+                            
+                            success, error = api_manager.safe_sheet_operation(
+                                sheet_reclamos.update,
+                                data_to_update,
+                                is_batch=True
+                            )
+                            
+                            if success:
+                                st.success(f"✅ Estado cambiado a {nuevo_estado}.")
+                                st.cache_data.clear()
+                                time.sleep(5)
+                                st.rerun()
+                            else:
+                                st.error(f"❌ Error al cambiar estado: {error}")
+                        except Exception as e:
+                            st.error(f"❌ Error al procesar: {str(e)}")
+            
+            with col3:
+                if st.button("🗑️ Eliminar reclamo", key="eliminar_reclamo", use_container_width=True, type="primary"):
+                    # Confirmación de eliminación
+                    confirmacion = st.checkbox("¿Estás seguro de eliminar este reclamo permanentemente?")
+                    
+                    if confirmacion:
+                        with st.spinner("Eliminando reclamo..."):
+                            try:
+                                idx_original = df[df["Nº Cliente"] == nro_cliente].index[0]
+                                fila_sheets = idx_original + 2  # +1 para header, +1 para índice base 1
+                                
+                                # Eliminar fila en Google Sheets
+                                success, error = api_manager.safe_sheet_operation(
+                                    sheet_reclamos.delete_rows,
+                                    fila_sheets
+                                )
+                                
+                                if success:
+                                    st.success("✅ Reclamo eliminado correctamente.")
+                                    st.cache_data.clear()
+                                    time.sleep(5)
+                                    st.rerun()
+                                else:
+                                    st.error(f"❌ Error al eliminar: {error}")
+                            except Exception as e:
+                                st.error(f"❌ Error al procesar: {str(e)}")
 
         # === DESCONEXIONES A PEDIDO ===
         st.markdown("---")
@@ -508,7 +598,7 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
                         if success:
                             st.success(f"☑️ Reclamo {row['Nº Cliente']} marcado como resuelto.")
                             st.cache_data.clear()
-                            time.sleep(1)
+                            time.sleep(3)
                             st.rerun()
                         else:
                             st.error(f"❌ Error al actualizar: {error}")
