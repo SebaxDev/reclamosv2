@@ -56,7 +56,7 @@ def render_login(sheet_usuarios):
     """Formulario de login simplificado"""
     st.markdown("""
     <div class="section-container" style="max-width: 400px; margin: 50px auto;">
-        <h1 style="text-align: center; margin-bottom: 30px;">🔐 Iniciar sesión</h1>
+        <h3 style="text-align: center; margin-bottom: 30px;">🔐 Iniciar sesión</h3>
     </div>
     """, unsafe_allow_html=True)
     
@@ -75,7 +75,7 @@ def render_login(sheet_usuarios):
                         'user_info': user_info
                     }
                     st.success(f"✅ Bienvenido, {user_info['nombre']}!")
-                    time.sleep(3)
+                    time.sleep(4)
                     st.rerun()
                 else:
                     st.error("Credenciales incorrectas o usuario inactivo")
