@@ -1442,7 +1442,11 @@ elif opcion == "Cierre de Reclamos" and user_role == 'admin':
                 st.markdown(f"📌 **Reclamo encontrado:** {reclamo['Tipo de reclamo']} - Estado: {reclamo['Estado']}")
                 st.markdown(f"👷 Técnico actual: `{reclamo['Técnico'] or 'No asignado'}`")
 
-                tecnicos_actuales = [t.strip() for t in reclamo["Técnico"].split(",") if t.strip()]
+                tecnicos_actuales_raw = [t.strip().lower() for t in reclamo["Técnico"].split(",") if t.strip()]
+                tecnicos_actuales = [
+                    tecnico for tecnico in TECNICOS_DISPONIBLES
+                    if tecnico.lower() in tecnicos_actuales_raw
+                ]
                 nuevo_tecnico_multiselect = st.multiselect(
                     "👷 Nuevo técnico asignado",
                     options=TECNICOS_DISPONIBLES,
