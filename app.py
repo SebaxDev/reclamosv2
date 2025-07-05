@@ -20,6 +20,7 @@ from components.metrics_dashboard import render_metrics_dashboard
 from utils.styles import get_main_styles
 from utils.data_manager import safe_get_sheet_data, safe_normalize, update_sheet_data, batch_update_sheet
 from utils.api_manager import api_manager, init_api_session_state  # Import modificado
+from utils.pdf_utils import agregar_pie_pdf
 from config.settings import *
 from components.user_widget import show_user_widget
 
@@ -579,6 +580,7 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
                         c.showPage()
                         y = height - 40
 
+                agregar_pie_pdf(c, width, height)
                 c.save()
                 buffer.seek(0)
                 st.download_button("📥 Descargar PDF de desconexiones", buffer, file_name="desconexiones_pedido.pdf", mime="application/pdf")
@@ -868,6 +870,7 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
                                 c.drawString(40, y, f"RECLAMOS PENDIENTES (cont.) - {datetime.now().strftime('%d/%m/%Y')}")
                                 y -= 30
 
+                        agregar_pie_pdf(c, width, height)
                         c.save()
                         buffer.seek(0)
                         
@@ -935,6 +938,7 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
                         c.drawString(40, y, f"RECLAMOS SELECCIONADOS (cont.) - {datetime.now().strftime('%d/%m/%Y')}")
                         y -= 30
 
+                agregar_pie_pdf(c, width, height)
                 c.save()
                 buffer.seek(0)
                 
@@ -992,6 +996,7 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
                             c.drawString(40, y, f"RECLAMOS ACTIVOS (cont.) - {datetime.now().strftime('%d/%m/%Y')}")
                             y -= 30
 
+                    agregar_pie_pdf(c, width, height)
                     c.save()
                     buffer.seek(0)
 
@@ -1192,6 +1197,7 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
 
                 y -= 20
 
+            agregar_pie_pdf(c, width, height)
             c.save()
             buffer.seek(0)
 
@@ -1334,28 +1340,44 @@ elif opcion == "Cierre de Reclamos" and user_role == 'admin':
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --------------------------
-# FOOTER
+# NUEVO FOOTER - RESUMEN DE LA JORNADA
 # --------------------------
 st.markdown("---")
-st.markdown("### 📊 Estadísticas de la sesión")
+st.markdown('<div class="section-container">', unsafe_allow_html=True)
+st.markdown("### 📋 Resumen de la jornada")
 
-# Mostrar estadísticas de API de forma segura
-try:
-    api_stats = api_manager.get_api_stats()
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric("🔄 Llamadas a la API", api_stats.get('total_calls', 0))
-    
-    with col2:
-        if api_stats.get('last_call', 0) > 0:
-            last_call_time = datetime.fromtimestamp(api_stats['last_call']).strftime("%H:%M:%S")
-            st.metric("🕐 Última llamada", last_call_time)
-        else:
-            st.metric("🕐 Última llamada", "N/A")
-    
-    with col3:
-        st.metric("⚠️ Errores API", api_stats.get('error_count', 0))
+# Conversión de fechas
+df_reclamos["Fecha y hora"] = pd.to_datetime(df_reclamos["Fecha y hora"], errors="coerce")
+hoy = datetime.now().date()
+df_hoy = df_reclamos[df_reclamos["Fecha y hora"].dt.date == hoy]
 
-except Exception as e:
-    st.error(f"Error al cargar estadísticas: {str(e)}")
+# Reclamos en curso
+df_en_curso = df_reclamos[df_reclamos["Estado"] == "En curso"].copy()
+
+col1, col2 = st.columns(2)
+col1.metric("📌 Reclamos cargados hoy", len(df_hoy))
+col2.metric("⚙️ Reclamos en curso", len(df_en_curso))
+
+# Técnicos por reclamo
+st.markdown("### 👷 Reclamos en curso por técnicos (agrupados)")
+
+if not df_en_curso.empty and "Técnico" in df_en_curso.columns:
+    # Normalizar nombres y filtrar no vacíos
+    df_en_curso["Técnico"] = df_en_curso["Técnico"].fillna("").astype(str)
+    df_en_curso = df_en_curso[df_en_curso["Técnico"].str.strip() != ""]
+
+    # Crear un set inmutable de técnicos asignados por reclamo (para detectar duplicados)
+    df_en_curso["tecnicos_set"] = df_en_curso["Técnico"].apply(
+        lambda x: tuple(sorted([t.strip().capitalize() for t in x.split(",") if t.strip()]))
+    )
+
+    # Agrupar por ese conjunto de técnicos
+    conteo_grupos = df_en_curso.groupby("tecnicos_set").size().reset_index(name="Cantidad")
+
+    for fila in conteo_grupos.itertuples():
+        tecnicos = ", ".join(fila.tecnicos_set)
+        st.markdown(f"- 👥 **{tecnicos}** → {fila.Cantidad} reclamos")
+else:
+    st.info("No hay técnicos asignados actualmente a reclamos en curso.")
+
+st.markdown('</div>', unsafe_allow_html=True)
