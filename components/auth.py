@@ -75,7 +75,7 @@ def render_login(sheet_usuarios):
                         'user_info': user_info
                     }
                     st.success(f"✅ Bienvenido, {user_info['nombre']}!")
-                    time.sleep(1)
+                    time.sleep(3)
                     st.rerun()
                 else:
                     st.error("Credenciales incorrectas o usuario inactivo")

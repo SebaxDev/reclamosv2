@@ -10,8 +10,7 @@ def render_navigation():
     opciones = [
         "🏠 Inicio", 
         "📊 Reclamos cargados", 
-        "📜 Historial por cliente", 
-        "✏️ Editar cliente", 
+        "🗂️ Gestión de clientes",  
         "🖨️ Imprimir reclamos", 
         "👷 Seguimiento técnico", 
         "✅ Cierre de Reclamos"

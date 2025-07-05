@@ -43,7 +43,7 @@ PERMISOS_POR_ROL = {
         'permisos': [
             'inicio', 
             'reclamos_cargados', 
-            'historial_cliente',
+            'gestion_clientes',
             'imprimir_reclamos'
         ]
     }
@@ -53,8 +53,7 @@ PERMISOS_POR_ROL = {
 OPCIONES_PERMISOS = {
     "Inicio": "inicio",
     "Reclamos cargados": "reclamos_cargados",
-    "Historial por cliente": "historial_cliente",
-    "Editar cliente": "editar_cliente",
+    "Gestión de clientes": "gestion_clientes",
     "Imprimir reclamos": "imprimir_reclamos",
     "Seguimiento técnico": "seguimiento_tecnico",
     "Cierre de Reclamos": "cierre_reclamos"
@@ -79,7 +78,7 @@ TIPOS_RECLAMO = [
 # --------------------------
 # SEGURIDAD Y API
 # --------------------------
-API_DELAY = 1.5  # Segundos entre llamadas a la API
+API_DELAY = 2.0  # Segundos entre llamadas a la API
 BATCH_DELAY = 2.0  # Segundos entre operaciones batch
 SESSION_TIMEOUT = 1800  # 30 minutos de inactividad para cerrar sesión
 
