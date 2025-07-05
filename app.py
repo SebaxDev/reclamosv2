@@ -1359,7 +1359,7 @@ col1.metric("📌 Reclamos cargados hoy", len(df_hoy))
 col2.metric("⚙️ Reclamos en curso", len(df_en_curso))
 
 # Técnicos por reclamo
-st.markdown("### 👷 Reclamos en curso por técnicos (agrupados)")
+st.markdown("### 👷 Reclamos en curso por técnicos")
 
 if not df_en_curso.empty and "Técnico" in df_en_curso.columns:
     # Normalizar nombres y filtrar no vacíos
