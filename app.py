@@ -238,18 +238,18 @@ if opcion == "Inicio" and has_permission('inicio'):
 
             if cliente_existente:
                 with col1:
-                    sector = st.text_input("🏩 Sector / Zona", value=cliente_existente.get("Sector", ""))
+                    nombre = st.text_input("👤 Nombre del Cliente", value=cliente_existente.get("Nombre", ""))
                     direccion = st.text_input("📍 Dirección", value=cliente_existente.get("Dirección", ""))
                 with col2:
-                    nombre = st.text_input("👤 Nombre del Cliente", value=cliente_existente.get("Nombre", ""))
                     telefono = st.text_input("📞 Teléfono", value=cliente_existente.get("Teléfono", ""))
+                    sector = st.text_input("🏩 Sector / Zona", value=cliente_existente.get("Sector", ""))
             else:
                 with col1:
-                    sector = st.text_input("🏩 Sector / Zona", placeholder="Coloque número de sector")
+                    nombre = st.text_input("👤 Nombre del Cliente", placeholder="Nombre completo")
                     direccion = st.text_input("📍 Dirección", placeholder="Dirección completa")
                 with col2:
-                    nombre = st.text_input("👤 Nombre del Cliente", placeholder="Nombre completo")
                     telefono = st.text_input("📞 Teléfono", placeholder="Número de contacto")
+                    sector = st.text_input("🏩 Sector / Zona", placeholder="Coloque número de sector")
 
             tipo_reclamo = st.selectbox("📌 Tipo de Reclamo", TIPOS_RECLAMO)
             detalles = st.text_area("📝 Detalles del Reclamo", placeholder="Describe el problema o solicitud...", height=100)
@@ -267,8 +267,8 @@ if opcion == "Inicio" and has_permission('inicio'):
         if enviado:
             if not nro_cliente:
                 st.error("⚠️ Debes ingresar un número de cliente.")
-            elif not all([nombre.strip(), direccion.strip(), atendido_por.strip()]):
-                st.error("⚠️ Los campos marcados con asterisco (*) son obligatorios.")
+            elif not all([nombre.strip(), direccion.strip(), sector.strip(), tipo_reclamo.strip(), atendido_por.strip()]):
+                st.error("⚠️ Todos los campos obligatorios deben estar completos.")
             else:
                 with st.spinner("Guardando reclamo..."):
                     try:
@@ -291,7 +291,7 @@ if opcion == "Inicio" and has_permission('inicio'):
                         if success:
                             reclamo_guardado = True
                             st.success(f"✅ Reclamo cargado para el cliente {nro_cliente} - {tipo_reclamo.upper()}")
-                            
+
                             if tipo_reclamo.strip().lower() == "desconexion a pedido":
                                 st.warning("📄 Este reclamo es una Desconexión a Pedido. **Y NO CUENTA como reclamo activo.**")
 
@@ -342,9 +342,7 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
         df["Fecha y hora"] = pd.to_datetime(df["Fecha y hora"], errors="coerce")
         df = df.sort_values("Fecha y hora", ascending=False)
 
-        # ==============================
-        # MINI PANEL: Reclamos por tipo
-        # ==============================
+        # === (RECLAMOS POR TIPO) ===
         df_activos = df[df["Estado"].isin(["Pendiente", "En curso"])]
 
         if not df_activos.empty:
@@ -355,7 +353,6 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
 
             tipos = list(conteo_por_tipo.index)
             cantidad = list(conteo_por_tipo.values)
-
             cols_per_row = 4
             for i in range(0, len(tipos), cols_per_row):
                 cols = st.columns(cols_per_row)
@@ -363,43 +360,28 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
                     if i + j < len(tipos):
                         tipo = tipos[i + j]
                         cant = cantidad[i + j]
-                        
-                        # Estilos dinámicos
-                        color_cantidad = "#dc3545" if cant > 10 else "#0d6efd"  # rojo si > 10
+                        color_cantidad = "#dc3545" if cant > 10 else "#0d6efd"
                         font_size = "1.4rem" if cant > 10 else "1.2rem"
-                        bg_color = "#f8f9fa"
-            
                         with col:
                             st.markdown(f"""
-                                <div style="
-                                    text-align: center;
-                                    padding: 5px 4px;
-                                    border-radius: 8px;
-                                    background-color: {bg_color};
-                                    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-                                    margin-bottom: 8px;
-                                ">
-                                    <h5 style="margin: 0; font-size: 0.70rem; color: #6c757d;">{tipo}</h5>
-                                    <h4 style="margin: 2px 0 0 0; color: {color_cantidad}; font-size: {font_size};">{cant}</h4>
-                                </div>
-                            """, unsafe_allow_html=True)
+                                <div style="text-align: center; padding: 5px; border-radius: 8px; background-color: #f8f9fa;">
+                                    <h5 style='margin: 0; font-size: 0.70rem; color: #6c757d;'>{tipo}</h5>
+                                    <h4 style='margin: 2px 0 0 0; color: {color_cantidad}; font-size: {font_size};'>{cant}</h4>
+                                </div>""", unsafe_allow_html=True)
 
             st.markdown("</div>", unsafe_allow_html=True)
 
-        # ==============================
-        # FILTROS
-        # ==============================
+        # === FILTROS ===
         st.markdown("#### 🔍 Filtros de búsqueda")
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            filtro_estado = st.selectbox("Estado", ["Todos"] + sorted(df["Estado"].unique()))
+            filtro_estado = st.selectbox("Estado", ["Todos"] + sorted(df["Estado"].dropna().unique()))
         with col2:
-            filtro_sector = st.selectbox("Sector", ["Todos"] + sorted(df["Sector"].unique()))
+            filtro_sector = st.selectbox("Sector", ["Todos"] + sorted(df["Sector"].dropna().unique()))
         with col3:
-            filtro_tipo = st.selectbox("Tipo de reclamo", ["Todos"] + sorted(df["Tipo de reclamo"].unique()))
+            filtro_tipo = st.selectbox("Tipo de reclamo", ["Todos"] + sorted(df["Tipo de reclamo"].dropna().unique()))
 
-        # Aplicar filtros
         df_filtrado = df.copy()
         if filtro_estado != "Todos":
             df_filtrado = df_filtrado[df_filtrado["Estado"] == filtro_estado]
@@ -410,65 +392,77 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
 
         st.markdown(f"**Mostrando {len(df_filtrado)} reclamos**")
 
-        # ==============================
-        # TABLA NO EDITABLE
-        # ==============================
         columnas_visibles = ["Fecha y hora", "Nº Cliente", "Nombre", "Sector", "Tipo de reclamo", "Teléfono"]
         st.dataframe(df_filtrado[columnas_visibles], use_container_width=True, hide_index=True)
 
-        # ==============================
-        # FORMULARIO DE EDICIÓN MANUAL
-        # ==============================
+        # === DESCONEXIONES A PEDIDO ===
         st.markdown("---")
-        st.markdown("### ✏️ Editar un reclamo puntual")
+        st.markdown("### 🔌 Gestión de Desconexiones a Pedido")
 
-        # Selector por Nº Cliente - Nombre
-        df_filtrado["label_selector"] = df_filtrado["Nº Cliente"] + " - " + df_filtrado["Nombre"]
-        selector = st.selectbox(
-            "Seleccioná un reclamo por Nº de Cliente y Nombre",
-            [""] + df_filtrado["label_selector"].tolist()
-        )
+        desconexiones = df[
+            (df["Tipo de reclamo"].str.strip().str.lower() == "desconexion a pedido") &
+            ((df["Estado"].isna()) | (df["Estado"] == ""))
+        ].copy()
 
-        if selector:
-            nro_cliente = selector.split(" - ")[0]
-            reclamo_actual = df[df["Nº Cliente"] == nro_cliente].iloc[0]
+        cantidad = len(desconexiones)
+        st.info(f"📄 Hay {cantidad} desconexiones a pedido sin estado cargadas.")
 
-            nueva_direccion = st.text_input("Dirección", value=reclamo_actual.get("Dirección", ""))
-            nuevo_telefono = st.text_input("Teléfono", value=reclamo_actual.get("Teléfono", ""))
-            nuevo_tipo = st.selectbox("Tipo de reclamo", sorted(df["Tipo de reclamo"].unique()), 
-                                      index=sorted(df["Tipo de reclamo"].unique()).index(reclamo_actual["Tipo de reclamo"]))
-            nuevos_detalles = st.text_area("Detalles del reclamo", value=reclamo_actual.get("Detalles", ""), height=100)
-            nuevo_precinto = st.text_input("N° de Precinto", value=reclamo_actual.get("N° de Precinto", ""))
+        if cantidad > 0:
+            if st.button("📄 Generar PDF de desconexiones pendientes"):
+                buffer = io.BytesIO()
+                c = canvas.Canvas(buffer, pagesize=A4)
+                width, height = A4
+                y = height - 40
 
-            if st.button("💾 Guardar cambios", key="guardar_reclamo_individual", use_container_width=True):
-                with st.spinner("Guardando cambios..."):
+                c.setFont("Helvetica-Bold", 16)
+                c.drawString(40, y, f"DESCONEXIONES A PEDIDO - {datetime.now().strftime('%d/%m/%Y')}")
+                y -= 30
+
+                for i, reclamo in desconexiones.iterrows():
+                    c.setFont("Helvetica-Bold", 14)
+                    c.drawString(40, y, f"{reclamo['Nº Cliente']} - {reclamo['Nombre']}")
+                    y -= 15
+                    c.setFont("Helvetica", 12)
+                    lineas = [
+                        f"Dirección: {reclamo['Dirección']} - Tel: {reclamo['Teléfono']}",
+                        f"Sector: {reclamo['Sector']} - Precinto: {reclamo.get('N° de Precinto', 'N/A')}",
+                        f"Detalles: {reclamo['Detalles'][:100]}..." if reclamo['Detalles'] and len(reclamo['Detalles']) > 100 else f"Detalles: {reclamo['Detalles']}"
+                    ]
+                    for linea in lineas:
+                        c.drawString(40, y, linea)
+                        y -= 12
+                    y -= 8
+                    c.line(40, y, width - 40, y)
+                    y -= 15
+                    if y < 100:
+                        c.showPage()
+                        y = height - 40
+
+                c.save()
+                buffer.seek(0)
+                st.download_button("📥 Descargar PDF de desconexiones", buffer, file_name="desconexiones_pedido.pdf", mime="application/pdf")
+
+            st.markdown("#### ✅ Marcar como resueltas")
+            for i, row in desconexiones.iterrows():
+                col1, col2 = st.columns([5, 1])
+                col1.markdown(f"**{row['Nº Cliente']} - {row['Nombre']} - Sector {row['Sector']}**")
+                if col2.button("Resuelto", key=f"resuelto_{i}"):
                     try:
-                        idx_original = df[df["Nº Cliente"] == nro_cliente].index[0]
-
-                        df.loc[idx_original, "Dirección"] = nueva_direccion
-                        df.loc[idx_original, "Teléfono"] = nuevo_telefono
-                        df.loc[idx_original, "Tipo de reclamo"] = nuevo_tipo
-                        df.loc[idx_original, "Detalles"] = nuevos_detalles
-                        df.loc[idx_original, "N° de Precinto"] = nuevo_precinto
-
-                        df = df.astype(str)
-
-                        data_to_update = [df.columns.tolist()] + df.values.tolist()
+                        fila = i + 2  # +2 por encabezado
                         success, error = api_manager.safe_sheet_operation(
                             sheet_reclamos.update,
-                            data_to_update,
-                            is_batch=True
+                            f"I{fila}",  # Columna Estado
+                            [["Resuelto"]]
                         )
-
                         if success:
-                            st.success("✅ Reclamo actualizado correctamente.")
+                            st.success(f"☑️ Reclamo {row['Nº Cliente']} marcado como resuelto.")
                             st.cache_data.clear()
                             time.sleep(1)
                             st.rerun()
                         else:
-                            st.error(f"❌ Error al guardar: {error}")
+                            st.error(f"❌ Error al actualizar: {error}")
                     except Exception as e:
-                        st.error(f"❌ Error al procesar: {str(e)}")
+                        st.error(f"❌ Error inesperado: {str(e)}")
 
     except Exception as e:
         st.error(f"⚠️ Error en la gestión de reclamos: {str(e)}")
