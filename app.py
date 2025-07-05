@@ -1414,9 +1414,7 @@ elif opcion == "Cierre de Reclamos" and user_role == 'admin':
     st.markdown('<div class="section-container">', unsafe_allow_html=True)
     st.subheader("✅ Cierre de reclamos en curso")
 
-    # Función auxiliar para formatear fechas
     def format_fecha(fecha, formato='%d/%m/%Y %H:%M:%S'):
-        """Formatea una fecha para visualización consistente"""
         if pd.isna(fecha) or fecha is None:
             return "Fecha no disponible"
         try:
@@ -1426,87 +1424,96 @@ elif opcion == "Cierre de Reclamos" and user_role == 'admin':
         except:
             return "Fecha inválida"
 
-    # Preparación de datos
     df_reclamos["Nº Cliente"] = df_reclamos["Nº Cliente"].astype(str).str.strip()
     df_reclamos["Técnico"] = df_reclamos["Técnico"].astype(str).fillna("")
-    
-    # Procesamiento mejorado de fechas
-    df_reclamos["Fecha y hora"] = pd.to_datetime(
-        df_reclamos["Fecha y hora"],
-        dayfirst=True,
-        format='mixed',
-        errors='coerce'
-    )
-    
-    # Filtrar reclamos en curso
+    df_reclamos["Fecha y hora"] = pd.to_datetime(df_reclamos["Fecha y hora"], dayfirst=True, format='mixed', errors='coerce')
+
+    # 👉 NUEVO: Buscar y reasignar técnico por cliente
+    with st.expander("🔄 Reasignar técnico por Nº de cliente"):
+        cliente_busqueda = st.text_input("🔢 Ingresá el N° de Cliente para buscar", key="buscar_cliente_tecnico").strip()
+        if cliente_busqueda:
+            reclamos_filtrados = df_reclamos[
+                (df_reclamos["Nº Cliente"] == cliente_busqueda) &
+                (df_reclamos["Estado"].isin(["Pendiente", "En curso"]))
+            ]
+
+            if not reclamos_filtrados.empty:
+                reclamo = reclamos_filtrados.iloc[0]
+                st.markdown(f"📌 **Reclamo encontrado:** {reclamo['Tipo de reclamo']} - Estado: {reclamo['Estado']}")
+                st.markdown(f"👷 Técnico actual: `{reclamo['Técnico'] or 'No asignado'}`")
+
+                nuevo_tecnico = st.text_input("👷 Nuevo técnico asignado (usar coma para varios)", value=reclamo['Técnico'], key="nuevo_tecnico_input")
+
+                if st.button("💾 Guardar nuevo técnico", key="guardar_tecnico"):
+                    try:
+                        fila_index = reclamo.name + 2
+                        updates = [{"range": f"J{fila_index}", "values": [[nuevo_tecnico.upper()]]}]
+
+                        if reclamo['Estado'] == "Pendiente":
+                            updates.append({"range": f"I{fila_index}", "values": [["En curso"]]})
+
+                        success, error = api_manager.safe_sheet_operation(
+                            batch_update_sheet,
+                            sheet_reclamos,
+                            updates,
+                            is_batch=True
+                        )
+
+                        if success:
+                            st.success("✅ Técnico actualizado correctamente.")
+                            st.cache_data.clear()
+                            time.sleep(3)
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Error al actualizar: {error}")
+                    except Exception as e:
+                        st.error(f"❌ Error inesperado: {str(e)}")
+            else:
+                st.warning("⚠️ No se encontró un reclamo pendiente o en curso para ese cliente.")
+
+    # 🔽 Parte clásica: ver y resolver reclamos en curso
     en_curso = df_reclamos[df_reclamos["Estado"] == "En curso"].copy()
 
     if en_curso.empty:
         st.info("📭 No hay reclamos en curso en este momento.")
     else:
-        # Filtro por técnico
         tecnicos_unicos = sorted(set(
             tecnico.strip().upper() 
             for t in en_curso["Técnico"] 
             for tecnico in t.split(",") 
             if tecnico.strip()
         ))
-        
-        tecnicos_seleccionados = st.multiselect(
-            "👷 Filtrar por técnico asignado", 
-            tecnicos_unicos, 
-            key="filtro_tecnicos"
-        )
+
+        tecnicos_seleccionados = st.multiselect("👷 Filtrar por técnico asignado", tecnicos_unicos, key="filtro_tecnicos")
 
         if tecnicos_seleccionados:
             en_curso = en_curso[
-                en_curso["Técnico"].apply(
-                    lambda t: any(
-                        tecnico.strip().upper() in t.upper() 
-                        for tecnico in tecnicos_seleccionados
-                    )
-                )
+                en_curso["Técnico"].apply(lambda t: any(tecnico.strip().upper() in t.upper() for tecnico in tecnicos_seleccionados))
             ]
 
         st.write("### 📋 Reclamos en curso:")
-        
-        # Mostrar dataframe con fechas formateadas
         df_mostrar = en_curso[["Fecha y hora", "Nº Cliente", "Nombre", "Tipo de reclamo", "Técnico"]].copy()
         df_mostrar["Fecha y hora"] = df_mostrar["Fecha y hora"].apply(format_fecha)
-        
-        st.dataframe(
-            df_mostrar,
-            use_container_width=True,
-            height=400
-        )
+
+        st.dataframe(df_mostrar, use_container_width=True, height=400)
 
         st.markdown("### ✏️ Acciones por reclamo:")
 
         for i, row in en_curso.iterrows():
             with st.container():
                 col1, col2, col3 = st.columns([3, 1, 1])
-                
+
                 with col1:
                     st.markdown(f"**#{row['Nº Cliente']} - {row['Nombre']}**")
-                    
-                    # Mostrar fecha formateada
-                    fecha_formateada = format_fecha(row["Fecha y hora"])
-                    st.markdown(f"📅 {fecha_formateada}")
-                    
+                    st.markdown(f"📅 {format_fecha(row['Fecha y hora'])}")
                     st.markdown(f"📌 {row['Tipo de reclamo']}")
                     st.markdown(f"👷 {row['Técnico']}")
 
-                    # Campo de precinto editable
                     cliente_id = str(row["Nº Cliente"]).strip()
                     cliente_info = df_clientes[df_clientes["Nº Cliente"] == cliente_id]
                     precinto_actual = cliente_info["N° de Precinto"].values[0] if not cliente_info.empty else ""
-                    
-                    nuevo_precinto = st.text_input(
-                        "🔒 Precinto", 
-                        value=precinto_actual, 
-                        key=f"precinto_{i}",
-                        help="Actualizar número de precinto si es necesario"
-                    )
+
+                    nuevo_precinto = st.text_input("🔒 Precinto", value=precinto_actual, key=f"precinto_{i}")
 
                 with col2:
                     if st.button("✅ Resuelto", key=f"resolver_{i}", use_container_width=True):
@@ -1514,17 +1521,14 @@ elif opcion == "Cierre de Reclamos" and user_role == 'admin':
                             try:
                                 updates = [{"range": f"I{i + 2}", "values": [["Resuelto"]]}]
 
-                                # Agregar fecha de resolución si corresponde
                                 if len(COLUMNAS_RECLAMOS) > 12:
                                     argentina = pytz.timezone("America/Argentina/Buenos_Aires")
                                     fecha_resolucion = datetime.now(argentina).strftime("%d/%m/%Y %H:%M:%S")
                                     updates.append({"range": f"M{i + 2}", "values": [[fecha_resolucion]]})
 
-                                # Actualizar precinto en hoja de reclamos (visual)
                                 if nuevo_precinto.strip() and nuevo_precinto != precinto_actual:
                                     updates.append({"range": f"F{i + 2}", "values": [[nuevo_precinto.strip()]]})
 
-                                # Ejecutar actualizaciones en hoja de reclamos
                                 success, error = api_manager.safe_sheet_operation(
                                     batch_update_sheet,
                                     sheet_reclamos,
@@ -1533,7 +1537,6 @@ elif opcion == "Cierre de Reclamos" and user_role == 'admin':
                                 )
 
                                 if success:
-                                    # También actualizar en hoja de CLIENTES si el cliente existe
                                     if nuevo_precinto.strip() and nuevo_precinto != precinto_actual and not cliente_info.empty:
                                         index_cliente_en_clientes = cliente_info.index[0] + 2
                                         success_precinto, error_precinto = api_manager.safe_sheet_operation(
@@ -1543,14 +1546,12 @@ elif opcion == "Cierre de Reclamos" and user_role == 'admin':
                                         )
                                         if not success_precinto:
                                             st.warning(f"⚠️ Precinto guardado en reclamo pero no en hoja de clientes: {error_precinto}")
-
                                     st.success(f"🟢 Reclamo de {row['Nombre']} cerrado correctamente.")
                                     st.cache_data.clear()
                                     time.sleep(3)
                                     st.rerun()
                                 else:
                                     st.error(f"❌ Error al actualizar: {error}")
-
                             except Exception as e:
                                 st.error(f"❌ Error inesperado: {str(e)}")
 
@@ -1560,16 +1561,14 @@ elif opcion == "Cierre de Reclamos" and user_role == 'admin':
                             try:
                                 updates = [
                                     {"range": f"I{i + 2}", "values": [["Pendiente"]]},
-                                    {"range": f"J{i + 2}", "values": [[""]]}  # Limpiar técnico
+                                    {"range": f"J{i + 2}", "values": [[""]]}
                                 ]
-
                                 success, error = api_manager.safe_sheet_operation(
                                     batch_update_sheet,
                                     sheet_reclamos,
                                     updates,
                                     is_batch=True
                                 )
-
                                 if success:
                                     st.success(f"🔄 Reclamo de {row['Nombre']} vuelto a PENDIENTE.")
                                     st.cache_data.clear()
@@ -1577,7 +1576,6 @@ elif opcion == "Cierre de Reclamos" and user_role == 'admin':
                                     st.rerun()
                                 else:
                                     st.error(f"❌ Error al actualizar: {error}")
-
                             except Exception as e:
                                 st.error(f"❌ Error inesperado: {str(e)}")
 
