@@ -73,7 +73,7 @@ TIPOS_RECLAMO = [
     "Suma Cable", "Reconexion", "Sin Señal Ambos", "Sin Señal Cable",
     "Sin Señal Internet", "Sintonia", "Interferencia", "Traslado",
     "Extension", "Extension x3", "Extension x4", "Cambio de Ficha",
-    "Cambio de Equipo", "Reclamo", "Desconexion a Pedido"
+    "Cambio de Equipo", "Reclamo", "Cambio de Plan", "Desconexion a Pedido"
 ]
 
 # --------------------------

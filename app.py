@@ -192,18 +192,23 @@ if opcion == "Inicio" and has_permission('inicio'):
     nro_cliente = st.text_input("🔢 N° de Cliente", placeholder="Ingresa el número de cliente").strip()
     cliente_existente = None
     formulario_bloqueado = False
+    reclamo_guardado = False
+    cliente_nuevo = False
 
-    # Validación de cliente existente
     if "Nº Cliente" in df_clientes.columns and nro_cliente:
         df_clientes["Nº Cliente"] = df_clientes["Nº Cliente"].astype(str).str.strip()
         df_reclamos["Nº Cliente"] = df_reclamos["Nº Cliente"].astype(str).str.strip()
 
         match = df_clientes[df_clientes["Nº Cliente"] == nro_cliente]
 
-        # Verificar reclamos activos
         reclamos_activos = df_reclamos[
             (df_reclamos["Nº Cliente"] == nro_cliente) &
-            (df_reclamos["Estado"].isin(["Pendiente", "En curso"]))
+            (
+                df_reclamos["Estado"].isin(["Pendiente", "En curso"]) |
+                (
+                    df_reclamos["Tipo de reclamo"].str.strip().str.lower() == "desconexion a pedido"
+                )
+            )
         ]
 
         if not match.empty:
@@ -213,7 +218,7 @@ if opcion == "Inicio" and has_permission('inicio'):
             st.info("ℹ️ Cliente no encontrado. Se cargará como Cliente Nuevo.")
 
         if not reclamos_activos.empty:
-            st.error("⚠️ Este cliente ya tiene un reclamo sin resolver. No se puede cargar uno nuevo hasta que se cierre el anterior.")
+            st.error("⚠️ Este cliente ya tiene un reclamo sin resolver o una desconexión activa. No se puede cargar uno nuevo.")
             formulario_bloqueado = True
 
             reclamo_vigente = reclamos_activos.sort_values("Fecha y hora", ascending=False).iloc[0]
@@ -223,7 +228,7 @@ if opcion == "Inicio" and has_permission('inicio'):
                 st.markdown(f"**👤 Cliente:** {reclamo_vigente['Nombre']}")
                 st.markdown(f"**📌 Tipo de reclamo:** {reclamo_vigente['Tipo de reclamo']}")
                 st.markdown(f"**📝 Detalles:** {reclamo_vigente['Detalles'][:250]}{'...' if len(reclamo_vigente['Detalles']) > 250 else ''}")
-                st.markdown(f"**⚙️ Estado:** {reclamo_vigente['Estado']}")
+                st.markdown(f"**⚙️ Estado:** {reclamo_vigente['Estado'] or 'Sin estado'}")
                 st.markdown(f"**👷 Técnico asignado:** {reclamo_vigente.get('Técnico', 'No asignado') or 'No asignado'}")
                 st.markdown(f"**🙍‍♂️ Atendido por:** {reclamo_vigente.get('Atendido por', 'N/A')}")
 
@@ -231,7 +236,6 @@ if opcion == "Inicio" and has_permission('inicio'):
         with st.form("reclamo_formulario", clear_on_submit=True):
             col1, col2 = st.columns(2)
 
-            # Campos del formulario con valores por defecto si el cliente existe
             if cliente_existente:
                 with col1:
                     sector = st.text_input("🏩 Sector / Zona", value=cliente_existente.get("Sector", ""))
@@ -252,16 +256,15 @@ if opcion == "Inicio" and has_permission('inicio'):
 
             col3, col4 = st.columns(2)
             with col3:
-                precinto = st.text_input("🔒 N° de Precinto (opcional)", 
-                                       value=cliente_existente.get("N° de Precinto", "").strip() if cliente_existente else "",
-                                       placeholder="Número de precinto")
+                precinto = st.text_input("🔒 N° de Precinto (opcional)",
+                                         value=cliente_existente.get("N° de Precinto", "").strip() if cliente_existente else "",
+                                         placeholder="Número de precinto")
             with col4:
                 atendido_por = st.text_input("👤 Atendido por", placeholder="Nombre de quien atiende", value=st.session_state.get("current_user", ""))
 
             enviado = st.form_submit_button("✅ Guardar Reclamo", use_container_width=True)
 
         if enviado:
-            # Validación de campos obligatorios
             if not nro_cliente:
                 st.error("⚠️ Debes ingresar un número de cliente.")
             elif not all([nombre.strip(), direccion.strip(), atendido_por.strip()]):
@@ -269,26 +272,29 @@ if opcion == "Inicio" and has_permission('inicio'):
             else:
                 with st.spinner("Guardando reclamo..."):
                     try:
-                        # Preparar datos
                         argentina = pytz.timezone("America/Argentina/Buenos_Aires")
                         fecha_hora = datetime.now(argentina).strftime("%d/%m/%Y %H:%M:%S")
+
+                        estado_reclamo = "" if tipo_reclamo.strip().lower() == "desconexion a pedido" else "Pendiente"
 
                         fila_reclamo = [
                             fecha_hora, nro_cliente, sector, nombre.upper(),
                             direccion.upper(), telefono, tipo_reclamo,
-                            detalles.upper(), "Pendiente", "", precinto, atendido_por.upper()
+                            detalles.upper(), estado_reclamo, "", precinto, atendido_por.upper()
                         ]
 
-                        # Operación segura con API Manager
                         success, error = api_manager.safe_sheet_operation(
                             sheet_reclamos.append_row,
                             fila_reclamo
                         )
 
                         if success:
-                            st.success("✅ Reclamo guardado correctamente.")
+                            reclamo_guardado = True
+                            st.success(f"✅ Reclamo cargado para el cliente {nro_cliente} - {tipo_reclamo.upper()}")
+                            
+                            if tipo_reclamo.strip().lower() == "desconexion a pedido":
+                                st.warning("📄 Este reclamo es una Desconexión a Pedido. **Y NO CUENTA como reclamo activo.**")
 
-                            # Agregar cliente si es nuevo
                             if nro_cliente not in df_clientes["Nº Cliente"].values:
                                 fila_cliente = [nro_cliente, sector, nombre.upper(), direccion.upper(), telefono, precinto]
                                 success_cliente, _ = api_manager.safe_sheet_operation(
@@ -296,16 +302,20 @@ if opcion == "Inicio" and has_permission('inicio'):
                                     fila_cliente
                                 )
                                 if success_cliente:
-                                    st.info("🗂️ Nuevo cliente agregado a la base de datos.")
-
-                            # Limpiar cache y refrescar
-                            st.cache_data.clear()
-                            time.sleep(1)
-                            st.rerun()
+                                    cliente_nuevo = True
                         else:
                             st.error(f"❌ Error al guardar: {error}")
                     except Exception as e:
                         st.error(f"❌ Error inesperado: {str(e)}")
+
+        if reclamo_guardado:
+            if cliente_nuevo:
+                st.info("🗂️ Nuevo cliente agregado a la base de datos.")
+
+            st.markdown("---")
+            if st.button("✅ Listo", use_container_width=True):
+                st.cache_data.clear()
+                st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
 
