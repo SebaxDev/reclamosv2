@@ -19,7 +19,7 @@ def render_metrics_dashboard(df_reclamos):
         
         # Métricas principales con efectos hover
         st.markdown("""
-        <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+        <div style="display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
         """, unsafe_allow_html=True)
         
         colm1, colm2, colm3, colm4 = st.columns(4)
@@ -27,32 +27,32 @@ def render_metrics_dashboard(df_reclamos):
         with colm1:
             st.markdown(f"""
             <div class="metric-container hover-card">
-                <h3 style="margin: 0; color: #0d6efd;">📄 Total activos</h3>
-                <h1 style="margin: 10px 0 0 0; font-size: 2.5rem;">{total}</h1>
+                <h4 style="margin: 0; color: #0d6efd;">📄 Total activos</h4>
+                <h3 style="margin: 8px 0 0 0; font-size: 1.8rem; font-weight: bold;">{total}</h3>
             </div>
             """, unsafe_allow_html=True)
         
         with colm2:
             st.markdown(f"""
             <div class="metric-container hover-card">
-                <h3 style="margin: 0; color: #fd7e14;">🕒 Pendientes</h3>
-                <h1 style="margin: 10px 0 0 0; font-size: 2.5rem;">{pendientes}</h1>
+                <h4 style="margin: 0; color: #fd7e14;">🕒 Pendientes</h4>
+                <h3 style="margin: 8px 0 0 0; font-size: 1.8rem; font-weight: bold;">{pendientes}</h3>
             </div>
             """, unsafe_allow_html=True)
         
         with colm3:
             st.markdown(f"""
             <div class="metric-container hover-card">
-                <h3 style="margin: 0; color: #0dcaf0;">🔧 En curso</h3>
-                <h1 style="margin: 10px 0 0 0; font-size: 2.5rem;">{en_curso}</h1>
+                <h4 style="margin: 0; color: #0dcaf0;">🔧 En curso</h4>
+                <h3 style="margin: 8px 0 0 0; font-size: 1.8rem; font-weight: bold;">{en_curso}</h3>
             </div>
             """, unsafe_allow_html=True)
         
         with colm4:
             st.markdown(f"""
             <div class="metric-container hover-card">
-                <h3 style="margin: 0; color: #198754;">✅ Resueltos</h3>
-                <h1 style="margin: 10px 0 0 0; font-size: 2.5rem;">{resueltos}</h1>
+                <h4 style="margin: 0; color: #198754;">✅ Resueltos</h4>
+                <h3 style="margin: 8px 0 0 0; font-size: 1.8rem; font-weight: bold;">{resueltos}</h3>
             </div>
             """, unsafe_allow_html=True)
         

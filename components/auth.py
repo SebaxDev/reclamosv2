@@ -55,8 +55,8 @@ def verify_credentials(username, password, sheet_usuarios):
 def render_login(sheet_usuarios):
     """Formulario de login simplificado"""
     st.markdown("""
-    <div class="section-container" style="max-width: 400px; margin: 50px auto;">
-        <h3 style="text-align: center; margin-bottom: 30px;">🔐 Iniciar sesión</h3>
+    <div class="section-container" style="max-width: 320px; margin: 40px auto; padding: 20px 25px;">
+        <h4 style="text-align: center; margin-bottom: 20px;">🔐 Iniciar sesión</h4>
     </div>
     """, unsafe_allow_html=True)
     
