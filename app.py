@@ -23,6 +23,7 @@ from utils.api_manager import api_manager, init_api_session_state  # Import modi
 from utils.pdf_utils import agregar_pie_pdf
 from config.settings import *
 from components.user_widget import show_user_widget
+from utils.date_utils import parse_fecha, es_fecha_valida, format_fecha, ahora_argentina
 
 # --------------------------------------------------
 # INICIALIZACIÓN GARANTIZADA
@@ -136,71 +137,100 @@ if not check_authentication():
 # Obtener información del usuario actual
 user_info = st.session_state.auth.get('user_info', {})
 user_role = user_info.get('rol', '')
+
 # --------------------------
 # CARGA DE DATOS
 # --------------------------
 
 @st.cache_data(ttl=30, show_spinner="Cargando datos...")
 def cargar_datos():
-    """Carga datos de Google Sheets con manejo de errores"""
+    """
+    Carga datos de Google Sheets con manejo robusto de fechas y validaciones
+    Utiliza funciones centralizadas de date_utils para el manejo de fechas
+    """
     try:
-        # Cargar datos de las hojas (esto ya lo tienes)
-        df_reclamos = safe_get_sheet_data(sheet_reclamos, COLUMNAS_RECLAMOS)
-        df_clientes = safe_get_sheet_data(sheet_clientes, COLUMNAS_CLIENTES)
-        df_usuarios = safe_get_sheet_data(sheet_usuarios, COLUMNAS_USUARIOS)
+        # Cargar datos de las hojas
+        with st.spinner("Obteniendo datos de Google Sheets..."):
+            df_reclamos = safe_get_sheet_data(sheet_reclamos, COLUMNAS_RECLAMOS)
+            df_clientes = safe_get_sheet_data(sheet_clientes, COLUMNAS_CLIENTES)
+            df_usuarios = safe_get_sheet_data(sheet_usuarios, COLUMNAS_USUARIOS)
         
+        # Validación de datos básica
+        if df_reclamos.empty:
+            st.error("⚠️ La hoja de reclamos está vacía o no se pudo cargar")
+        if df_clientes.empty:
+            st.error("⚠️ La hoja de clientes está vacía o no se pudo cargar")
         if df_reclamos.empty or df_clientes.empty:
-            st.warning("⚠️ Algunas hojas están vacías")
+            return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         
-        # Normalizar columnas clave (esto ya lo tienes)
-        for col in ["Nº Cliente", "N° de Precinto"]:
-            df_clientes = safe_normalize(df_clientes, col)
-            df_reclamos = safe_normalize(df_reclamos, col)
-            
-        # Normalización robusta de fechas
-        argentina = pytz.timezone("America/Argentina/Buenos_Aires")
-        
-        def parse_fecha(fecha_str):
-            if pd.isna(fecha_str):
-                return pd.NaT
+        # Normalización de columnas clave
+        with st.spinner("Normalizando datos..."):
+            for col in ["Nº Cliente", "N° de Precinto"]:
+                if col in df_clientes.columns:
+                    df_clientes[col] = df_clientes[col].astype(str).str.strip()
+                if col in df_reclamos.columns:
+                    df_reclamos[col] = df_reclamos[col].astype(str).str.strip()
+
+        # Procesamiento de fechas con manejo de errores
+        with st.spinner("Procesando fechas..."):
+            if 'Fecha y hora' in df_reclamos.columns:
+                # Guardar una copia del formato original para diagnóstico
+                df_reclamos['Fecha_original'] = df_reclamos['Fecha y hora'].copy()
                 
-            formatos = [
-                '%d/%m/%Y %H:%M:%S',  # Formato objetivo
-                '%d-%m-%Y %H:%M:%S',
-                '%m/%d/%Y %H:%M:%S',   # Formato americano
-                '%Y-%m-%d %H:%M:%S'    # Formato ISO
-            ]
+                # Convertir fechas usando la función centralizada
+                df_reclamos['Fecha y hora'] = df_reclamos['Fecha y hora'].apply(
+                    lambda x: parse_fecha(x) if not pd.isna(x) else pd.NaT
+                )
+                
+                # Verificación de fechas inválidas con función centralizada
+                fechas_invalidas = ~df_reclamos['Fecha y hora'].apply(es_fecha_valida)
+                if fechas_invalidas.any():
+                    num_fechas_invalidas = fechas_invalidas.sum()
+                    st.warning(f"⚠️ Advertencia: {num_fechas_invalidas} reclamos tienen fechas inválidas o faltantes")
+                    
+                    if DEBUG_MODE:
+                        invalid_data = df_reclamos[fechas_invalidas].copy()
+                        st.write("Filas con fechas inválidas:", 
+                                invalid_data[['Nº Cliente', 'Nombre', 'Fecha_original']].head(10))
+                
+                # Crear columna adicional con fecha formateada usando función centralizada
+                df_reclamos['Fecha_formateada'] = df_reclamos['Fecha y hora'].apply(
+                    lambda x: format_fecha(x, '%d/%m/%Y %H:%M', 'Fecha inválida')
+                )
+                
+                # Eliminar columna temporal de diagnóstico
+                df_reclamos.drop('Fecha_original', axis=1, inplace=True, errors='ignore')
+            else:
+                st.error("❌ No se encontró la columna 'Fecha y hora' en los datos de reclamos")
+                df_reclamos['Fecha y hora'] = pd.NaT
+                df_reclamos['Fecha_formateada'] = 'Columna no encontrada'
             
-            for fmt in formatos:
-                try:
-                    dt = datetime.strptime(str(fecha_str).strip(), fmt)
-                    return argentina.localize(dt)
-                except ValueError:
-                    continue
-            return pd.NaT
+        # Validación adicional de datos importantes
+        required_cols = ['Nº Cliente', 'Nombre', 'Sector']
+        missing_cols = [col for col in required_cols if col not in df_reclamos.columns]
         
-        df_reclamos['Fecha y hora'] = df_reclamos['Fecha y hora'].apply(parse_fecha)
-        
-        # Verificación de fechas inválidas
-        if df_reclamos['Fecha y hora'].isna().any():
-            num_fechas_invalidas = df_reclamos['Fecha y hora'].isna().sum()
-            st.warning(f"⚠️ Advertencia: {num_fechas_invalidas} reclamos tienen fechas inválidas o faltantes")
+        if missing_cols:
+            st.error(f"❌ Columnas requeridas faltantes en reclamos: {', '.join(missing_cols)}")
             
-            # Opcional: Mostrar filas problemáticas en modo debug
-            if DEBUG_MODE:
-                st.write("Filas con fechas inválidas:", df_reclamos[df_reclamos['Fecha y hora'].isna()])
-        
-        # Crear columna adicional con fecha formateada como string
-        df_reclamos['Fecha_formateada'] = df_reclamos['Fecha y hora'].apply(
-            lambda x: x.strftime('%d/%m/%Y %H:%M:%S') if pd.notna(x) else 'Fecha no disponible'
-        )
-        # === FIN DE LA NUEVA SECCIÓN ===
-            
+        for col in required_cols:
+            if col in df_clientes.columns and df_clientes[col].isnull().all():
+                st.warning(f"⚠️ Columna '{col}' en clientes está completamente vacía")
+
+        # Validar consistencia entre clientes y reclamos
+        clientes_sin_reclamos = set(df_clientes['Nº Cliente']) - set(df_reclamos['Nº Cliente'])
+        if clientes_sin_reclamos and DEBUG_MODE:
+            st.info(f"ℹ️ {len(clientes_sin_reclamos)} clientes registrados sin reclamos")
+
         return df_reclamos, df_clientes, df_usuarios
         
     except Exception as e:
-        st.error(f"❌ Error al cargar datos: {str(e)}")
-        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        st.error(f"❌ Error crítico al cargar datos: {str(e)}")
+        if DEBUG_MODE:
+            st.exception(e)
+        
+        # En caso de error, devolver dataframes vacíos para evitar problemas en otras partes
+        empty_df = pd.DataFrame(columns=COLUMNAS_RECLAMOS) if 'COLUMNAS_RECLAMOS' in globals() else pd.DataFrame()
+        return empty_df.copy(), empty_df.copy(), empty_df.copy()
 
 # Cargar datos y guardar en session_state
 df_reclamos, df_clientes, df_usuarios = cargar_datos()
@@ -236,21 +266,14 @@ if opcion == "Inicio" and has_permission('inicio'):
     cliente_nuevo = False
 
     if "Nº Cliente" in df_clientes.columns and nro_cliente:
+        # Normalización de datos
         df_clientes["Nº Cliente"] = df_clientes["Nº Cliente"].astype(str).str.strip()
         df_reclamos["Nº Cliente"] = df_reclamos["Nº Cliente"].astype(str).str.strip()
 
         match = df_clientes[df_clientes["Nº Cliente"] == nro_cliente]
 
-        # Convertir fechas a datetime y manejar posibles errores
-        try:
-            df_reclamos["Fecha y hora"] = pd.to_datetime(
-                df_reclamos["Fecha y hora"], 
-                dayfirst=True,  # Para formato dd/mm/yyyy
-                errors='coerce'  # Convierte errores a NaT
-            )
-        except Exception as e:
-            st.error(f"Error al procesar fechas: {str(e)}")
-            df_reclamos["Fecha y hora"] = pd.NaT
+        # Procesamiento robusto de fechas usando la función centralizada
+        df_reclamos["Fecha y hora"] = df_reclamos["Fecha y hora"].apply(parse_fecha)
 
         reclamos_activos = df_reclamos[
             (df_reclamos["Nº Cliente"] == nro_cliente) &
@@ -275,8 +298,8 @@ if opcion == "Inicio" and has_permission('inicio'):
             reclamo_vigente = reclamos_activos.sort_values("Fecha y hora", ascending=False).iloc[0]
 
             with st.expander("🔍 Ver detalles del reclamo activo"):
-                # Formatear fecha para mostrar
-                fecha_formateada = reclamo_vigente['Fecha y hora'].strftime('%d/%m/%Y %H:%M:%S') if pd.notna(reclamo_vigente['Fecha y hora']) else 'Fecha no disponible'
+                # Usar la función format_fecha para mostrar consistencia
+                fecha_formateada = format_fecha(reclamo_vigente['Fecha y hora'], '%d/%m/%Y %H:%M')
                 st.markdown(f"**📅 Fecha del reclamo:** {fecha_formateada}")
                 st.markdown(f"**👤 Cliente:** {reclamo_vigente['Nombre']}")
                 st.markdown(f"**📌 Tipo de reclamo:** {reclamo_vigente['Tipo de reclamo']}")
@@ -325,18 +348,14 @@ if opcion == "Inicio" and has_permission('inicio'):
             else:
                 with st.spinner("Guardando reclamo..."):
                     try:
-                        argentina = pytz.timezone("America/Argentina/Buenos_Aires")
-                        # Crear objeto datetime con zona horaria
-                        fecha_hora_obj = datetime.now(argentina)
-                        # Formatear para Google Sheets (como string)
-                        fecha_hora_str = fecha_hora_obj.strftime("%d/%m/%Y %H:%M:%S")
-                        # También guardar timestamp para posible uso futuro
-                        timestamp = fecha_hora_obj.timestamp()
-
+                        # Usar la función centralizada para obtener fecha/hora actual
+                        fecha_hora_obj = ahora_argentina()
+                        fecha_hora_str = format_fecha(fecha_hora_obj)  # Formato consistente dd/mm/yyyy HH:MM
+                        
                         estado_reclamo = "" if tipo_reclamo.strip().lower() == "desconexion a pedido" else "Pendiente"
 
                         fila_reclamo = [
-                            fecha_hora_str,  # String formateado para Google Sheets
+                            fecha_hora_str,  # String formateado usando la función centralizada
                             nro_cliente, 
                             sector, 
                             nombre.upper(),
@@ -345,7 +364,7 @@ if opcion == "Inicio" and has_permission('inicio'):
                             tipo_reclamo,
                             detalles.upper(), 
                             estado_reclamo, 
-                            "", 
+                            "",  # Técnico (vacío inicialmente)
                             precinto, 
                             atendido_por.upper()
                         ]
@@ -370,15 +389,20 @@ if opcion == "Inicio" and has_permission('inicio'):
                                 )
                                 if success_cliente:
                                     cliente_nuevo = True
+                                    st.info("ℹ️ Se ha creado un nuevo registro de cliente.")
 
                             # Limpiar caché y recargar datos
                             st.cache_data.clear()
-                            time.sleep(4) 
+                            time.sleep(3)  # Reducido de 4 a 3 segundos
                             st.rerun()
                         else:
                             st.error(f"❌ Error al guardar: {error}")
+                            if DEBUG_MODE:
+                                st.write("Detalles del error:", error)
                     except Exception as e:
                         st.error(f"❌ Error inesperado: {str(e)}")
+                        if DEBUG_MODE:
+                            st.exception(e)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -402,28 +426,19 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
         df = pd.merge(df, df_clientes[["Nº Cliente", "N° de Precinto", "Teléfono"]], 
                       on="Nº Cliente", how="left", suffixes=("", "_cliente"))
 
-        # Procesamiento robusto de fechas
-        df["Fecha y hora"] = pd.to_datetime(
-            df["Fecha y hora"], 
-            dayfirst=True,  # Para formato dd/mm/yyyy
-            errors='coerce'  # Convierte errores a NaT
-        )
+        # Procesamiento robusto de fechas usando la función centralizada
+        df["Fecha y hora"] = df["Fecha y hora"].apply(parse_fecha)
         
         # Verificar si hay fechas inválidas
         if df["Fecha y hora"].isna().any():
             num_fechas_invalidas = df["Fecha y hora"].isna().sum()
             st.warning(f"⚠️ Advertencia: {num_fechas_invalidas} reclamos tienen fechas inválidas o faltantes")
+            if DEBUG_MODE:
+                invalid_data = df[df["Fecha y hora"].isna()].copy()
+                st.write("Reclamos con fechas inválidas:", 
+                         invalid_data[['Nº Cliente', 'Nombre', 'Tipo de reclamo']])
 
         df = df.sort_values("Fecha y hora", ascending=False)
-
-        # Función para formatear fechas para visualización
-        def format_fecha(fecha):
-            if pd.isna(fecha):
-                return "Fecha no disponible"
-            try:
-                return fecha.strftime('%d/%m/%Y %H:%M:%S')
-            except:
-                return "Fecha inválida"
 
         # === (RECLAMOS POR TIPO) ===
         df_activos = df[df["Estado"].isin(["Pendiente", "En curso"])]
@@ -475,12 +490,18 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
 
         st.markdown(f"**Mostrando {len(df_filtrado)} reclamos**")
 
-        # Mostrar dataframe con fechas formateadas
-        columnas_visibles = ["Fecha y hora", "Nº Cliente", "Nombre", "Sector", "Tipo de reclamo", "Teléfono", "Estado"]
+        # Mostrar dataframe con fechas formateadas usando la función centralizada
+        columnas_visibles = ["Fecha_formateada", "Nº Cliente", "Nombre", "Sector", "Tipo de reclamo", "Teléfono", "Estado"]
         df_mostrar = df_filtrado[columnas_visibles].copy()
-        df_mostrar["Fecha y hora"] = df_mostrar["Fecha y hora"].apply(format_fecha)
+        df_mostrar = df_mostrar.rename(columns={"Fecha_formateada": "Fecha y hora"})
         
-        st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
+        st.dataframe(df_mostrar, use_container_width=True, hide_index=True,
+                    column_config={
+                        "Fecha y hora": st.column_config.DatetimeColumn(
+                            "Fecha y hora",
+                            format="DD/MM/YYYY HH:mm:ss"
+                        )
+                    })
 
         # === FORMULARIO DE EDICIÓN MANUAL ===
         st.markdown("---")
@@ -500,7 +521,7 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
             estado_actual = reclamo_actual.get("Estado", "")
             st.markdown(f"**Estado actual:** {estado_actual}")
             
-            # Mostrar fecha formateada
+            # Mostrar fecha formateada usando la función centralizada
             fecha_formateada = format_fecha(reclamo_actual.get("Fecha y hora"))
             st.markdown(f"**Fecha del reclamo:** {fecha_formateada}")
             
@@ -544,8 +565,11 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
                                 df.loc[idx_original, col] = val
                             
                             # Preparar datos para actualizar en Google Sheets
-                            df = df.astype(str)
-                            data_to_update = [df.columns.tolist()] + df.values.tolist()
+                            df_para_guardar = df.copy()
+                            df_para_guardar["Fecha y hora"] = df_para_guardar["Fecha y hora"].apply(
+                                lambda x: format_fecha(x) if pd.notna(x) else ""
+                            )
+                            data_to_update = [df_para_guardar.columns.tolist()] + df_para_guardar.astype(str).values.tolist()
                             
                             success, error = api_manager.safe_sheet_operation(
                                 sheet_reclamos.update,
@@ -556,12 +580,16 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
                             if success:
                                 st.success("✅ Reclamo actualizado correctamente.")
                                 st.cache_data.clear()
-                                time.sleep(4)  
+                                time.sleep(3)  # Reducido de 4 a 3 segundos
                                 st.rerun()
                             else:
                                 st.error(f"❌ Error al guardar: {error}")
+                                if DEBUG_MODE:
+                                    st.write("Detalles del error:", error)
                         except Exception as e:
                             st.error(f"❌ Error al procesar: {str(e)}")
+                            if DEBUG_MODE:
+                                st.exception(e)
             
             with col2:
                 if st.button("🔄 Cambiar solo estado", key="cambiar_estado", use_container_width=True):
@@ -577,8 +605,11 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
                                 df.loc[idx_original, "Técnico"] = ""
                             
                             # Actualizar en Google Sheets
-                            df = df.astype(str)
-                            data_to_update = [df.columns.tolist()] + df.values.tolist()
+                            df_para_guardar = df.copy()
+                            df_para_guardar["Fecha y hora"] = df_para_guardar["Fecha y hora"].apply(
+                                lambda x: format_fecha(x) if pd.notna(x) else ""
+                            )
+                            data_to_update = [df_para_guardar.columns.tolist()] + df_para_guardar.astype(str).values.tolist()
                             
                             success, error = api_manager.safe_sheet_operation(
                                 sheet_reclamos.update,
@@ -589,12 +620,16 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
                             if success:
                                 st.success(f"✅ Estado cambiado a {nuevo_estado}.")
                                 st.cache_data.clear()
-                                time.sleep(4)
+                                time.sleep(3)  # Reducido de 4 a 3 segundos
                                 st.rerun()
                             else:
                                 st.error(f"❌ Error al cambiar estado: {error}")
+                                if DEBUG_MODE:
+                                    st.write("Detalles del error:", error)
                         except Exception as e:
                             st.error(f"❌ Error al procesar: {str(e)}")
+                            if DEBUG_MODE:
+                                st.exception(e)
 
         # === DESCONEXIONES A PEDIDO ===
         st.markdown("---")
@@ -616,7 +651,7 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
                 y = height - 40
 
                 c.setFont("Helvetica-Bold", 16)
-                c.drawString(40, y, f"DESCONEXIONES A PEDIDO - {datetime.now().strftime('%d/%m/%Y')}")
+                c.drawString(40, y, f"DESCONEXIONES A PEDIDO - {format_fecha(ahora_argentina(), '%d/%m/%Y')}")
                 y -= 30
 
                 for i, reclamo in desconexiones.iterrows():
@@ -625,8 +660,8 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
                     y -= 15
                     c.setFont("Helvetica", 12)
                     
-                    # Formatear fecha para PDF
-                    fecha_pdf = format_fecha(reclamo.get("Fecha y hora"))
+                    # Formatear fecha para PDF usando la función centralizada
+                    fecha_pdf = format_fecha(reclamo.get("Fecha y hora"), '%d/%m/%Y %H:%M')
                     
                     lineas = [
                         f"Fecha: {fecha_pdf}",
@@ -666,18 +701,24 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
                         if success:
                             st.success(f"☑️ Reclamo {row['Nº Cliente']} marcado como resuelto.")
                             st.cache_data.clear()
-                            time.sleep(4)
+                            time.sleep(3)  # Reducido de 4 a 3 segundos
                             st.rerun()
                         else:
                             st.error(f"❌ Error al actualizar: {error}")
+                            if DEBUG_MODE:
+                                st.write("Detalles del error:", error)
                     except Exception as e:
                         st.error(f"❌ Error inesperado: {str(e)}")
+                        if DEBUG_MODE:
+                            st.exception(e)
 
     except Exception as e:
         st.error(f"⚠️ Error en la gestión de reclamos: {str(e)}")
+        if DEBUG_MODE:
+            st.exception(e)
 
     st.markdown('</div>', unsafe_allow_html=True)
-
+    
 # --------------------------
 # SECCIÓN 3: GESTION DE CLIENTES
 # --------------------------
@@ -716,7 +757,7 @@ elif opcion == "Gestión de clientes" and has_permission('gestion_clientes'):
                         if pd.isna(fecha):
                             return "Fecha no disponible"
                         try:
-                            return fecha.strftime('%d/%m/%Y %H:%M:%S')
+                            return fecha.strftime('%d/%m/%Y %H:%M')
                         except:
                             return "Fecha inválida"
                     
@@ -907,7 +948,7 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
             if pd.isna(fecha):
                 return "Fecha no disponible"
             try:
-                return fecha.strftime('%d/%m/%Y %H:%M:%S')
+                return fecha.strftime('%d/%m/%Y %H:%M')
             except:
                 return "Fecha inválida"
 
@@ -966,7 +1007,7 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
                             c.setFont("Helvetica", 13)
                             
                             # Formatear fecha para PDF
-                            fecha_pdf = format_fecha(reclamo['Fecha y hora'])
+                            fecha_pdf = format_fecha(reclamo['Fecha y hora'], '%d/%m/%Y %H:%M')
                             
                             lineas = [
                                 f"Fecha: {fecha_pdf}",
@@ -1038,7 +1079,7 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
                     c.setFont("Helvetica", 13)
                     
                     # Formatear fecha para PDF
-                    fecha_pdf = format_fecha(reclamo['Fecha y hora'])
+                    fecha_pdf = format_fecha(reclamo['Fecha y hora'], '%d/%m/%Y %H:%M')
                     
                     lineas = [
                         f"Fecha: {fecha_pdf}",
@@ -1102,7 +1143,7 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
                         c.setFont("Helvetica", 13)
                         
                         # Formatear fecha para PDF
-                        fecha_pdf = format_fecha(reclamo['Fecha y hora'])
+                        fecha_pdf = format_fecha(reclamo['Fecha y hora'], '%d/%m/%Y %H:%M')
                         
                         lineas = [
                             f"Fecha: {fecha_pdf}",
@@ -1247,7 +1288,7 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
                     st.markdown(f"**📝 Detalles:** {row['Detalles'][:250]}{'...' if len(row['Detalles']) > 250 else ''}")
                 
                 # Mostrar fecha completa en los detalles
-                fecha_completa = format_fecha(row["Fecha y hora"]) if pd.isna(row["Fecha y hora"]) else row["Fecha y hora"].strftime('%d/%m/%Y %H:%M:%S')
+                fecha_completa = format_fecha(row["Fecha y hora"]) if pd.isna(row["Fecha y hora"]) else row["Fecha y hora"].strftime('%d/%m/%Y %H:%M')
                 st.markdown(f"**📅 Fecha completa:** {fecha_completa}")
 
             st.divider()
@@ -1414,19 +1455,12 @@ elif opcion == "Cierre de Reclamos" and user_role == 'admin':
     st.markdown('<div class="section-container">', unsafe_allow_html=True)
     st.subheader("✅ Cierre de reclamos en curso")
 
-    def format_fecha(fecha, formato='%d/%m/%Y %H:%M:%S'):
-        if pd.isna(fecha) or fecha is None:
-            return "Fecha no disponible"
-        try:
-            if isinstance(fecha, str):
-                fecha = pd.to_datetime(fecha, dayfirst=True, format='mixed')
-            return fecha.strftime(formato)
-        except:
-            return "Fecha inválida"
-
+    # Normalización de datos
     df_reclamos["Nº Cliente"] = df_reclamos["Nº Cliente"].astype(str).str.strip()
     df_reclamos["Técnico"] = df_reclamos["Técnico"].astype(str).fillna("")
-    df_reclamos["Fecha y hora"] = pd.to_datetime(df_reclamos["Fecha y hora"], dayfirst=True, format='mixed', errors='coerce')
+    
+    # Procesamiento robusto de fechas usando la función centralizada
+    df_reclamos["Fecha y hora"] = df_reclamos["Fecha y hora"].apply(parse_fecha)
 
     # 👉 NUEVO: Buscar y reasignar técnico por cliente
     with st.expander("🔄 Reasignar técnico por Nº de cliente"):
@@ -1441,6 +1475,7 @@ elif opcion == "Cierre de Reclamos" and user_role == 'admin':
                 reclamo = reclamos_filtrados.iloc[0]
                 st.markdown(f"📌 **Reclamo encontrado:** {reclamo['Tipo de reclamo']} - Estado: {reclamo['Estado']}")
                 st.markdown(f"👷 Técnico actual: `{reclamo['Técnico'] or 'No asignado'}`")
+                st.markdown(f"📅 Fecha del reclamo: `{format_fecha(reclamo['Fecha y hora'])}`")
 
                 tecnicos_actuales_raw = [t.strip().lower() for t in reclamo["Técnico"].split(",") if t.strip()]
                 tecnicos_actuales = [
@@ -1455,31 +1490,36 @@ elif opcion == "Cierre de Reclamos" and user_role == 'admin':
                 )
 
                 if st.button("💾 Guardar nuevo técnico", key="guardar_tecnico"):
-                    try:
-                        fila_index = reclamo.name + 2
-                        nuevo_tecnico = ", ".join(nuevo_tecnico_multiselect).upper()
+                    with st.spinner("Actualizando técnico..."):
+                        try:
+                            fila_index = reclamo.name + 2
+                            nuevo_tecnico = ", ".join(nuevo_tecnico_multiselect).upper()
 
-                        updates = [{"range": f"J{fila_index}", "values": [[nuevo_tecnico]]}]
+                            updates = [{"range": f"J{fila_index}", "values": [[nuevo_tecnico]]}]
 
-                        if reclamo['Estado'] == "Pendiente":
-                            updates.append({"range": f"I{fila_index}", "values": [["En curso"]]})
+                            if reclamo['Estado'] == "Pendiente":
+                                updates.append({"range": f"I{fila_index}", "values": [["En curso"]]})
 
-                        success, error = api_manager.safe_sheet_operation(
-                            batch_update_sheet,
-                            sheet_reclamos,
-                            updates,
-                            is_batch=True
-                        )
+                            success, error = api_manager.safe_sheet_operation(
+                                batch_update_sheet,
+                                sheet_reclamos,
+                                updates,
+                                is_batch=True
+                            )
 
-                        if success:
-                            st.success("✅ Técnico actualizado correctamente.")
-                            st.cache_data.clear()
-                            time.sleep(3)
-                            st.rerun()
-                        else:
-                            st.error(f"❌ Error al actualizar: {error}")
-                    except Exception as e:
-                        st.error(f"❌ Error inesperado: {str(e)}")
+                            if success:
+                                st.success("✅ Técnico actualizado correctamente.")
+                                st.cache_data.clear()
+                                time.sleep(3)
+                                st.rerun()
+                            else:
+                                st.error(f"❌ Error al actualizar: {error}")
+                                if DEBUG_MODE:
+                                    st.write("Detalles del error:", error)
+                        except Exception as e:
+                            st.error(f"❌ Error inesperado: {str(e)}")
+                            if DEBUG_MODE:
+                                st.exception(e)
             else:
                 st.warning("⚠️ No se encontró un reclamo pendiente o en curso para ese cliente.")
 
@@ -1504,10 +1544,16 @@ elif opcion == "Cierre de Reclamos" and user_role == 'admin':
             ]
 
         st.write("### 📋 Reclamos en curso:")
-        df_mostrar = en_curso[["Fecha y hora", "Nº Cliente", "Nombre", "Tipo de reclamo", "Técnico"]].copy()
-        df_mostrar["Fecha y hora"] = df_mostrar["Fecha y hora"].apply(format_fecha)
-
-        st.dataframe(df_mostrar, use_container_width=True, height=400)
+        df_mostrar = en_curso[["Fecha_formateada", "Nº Cliente", "Nombre", "Tipo de reclamo", "Técnico"]].copy()
+        df_mostrar = df_mostrar.rename(columns={"Fecha_formateada": "Fecha y hora"})
+        
+        st.dataframe(df_mostrar, use_container_width=True, height=400,
+                    column_config={
+                        "Fecha y hora": st.column_config.TextColumn(
+                            "Fecha y hora",
+                            help="Fecha del reclamo en formato DD/MM/YYYY HH:MM"
+                        )
+                    })
 
         st.markdown("### ✏️ Acciones por reclamo:")
 
@@ -1534,8 +1580,7 @@ elif opcion == "Cierre de Reclamos" and user_role == 'admin':
                                 updates = [{"range": f"I{i + 2}", "values": [["Resuelto"]]}]
 
                                 if len(COLUMNAS_RECLAMOS) > 12:
-                                    argentina = pytz.timezone("America/Argentina/Buenos_Aires")
-                                    fecha_resolucion = datetime.now(argentina).strftime("%d/%m/%Y %H:%M:%S")
+                                    fecha_resolucion = format_fecha(ahora_argentina())
                                     updates.append({"range": f"M{i + 2}", "values": [[fecha_resolucion]]})
 
                                 if nuevo_precinto.strip() and nuevo_precinto != precinto_actual:
@@ -1564,8 +1609,12 @@ elif opcion == "Cierre de Reclamos" and user_role == 'admin':
                                     st.rerun()
                                 else:
                                     st.error(f"❌ Error al actualizar: {error}")
+                                    if DEBUG_MODE:
+                                        st.write("Detalles del error:", error)
                             except Exception as e:
                                 st.error(f"❌ Error inesperado: {str(e)}")
+                                if DEBUG_MODE:
+                                    st.exception(e)
 
                 with col3:
                     if st.button("↩️ Pendiente", key=f"volver_{i}", use_container_width=True):
@@ -1588,8 +1637,12 @@ elif opcion == "Cierre de Reclamos" and user_role == 'admin':
                                     st.rerun()
                                 else:
                                     st.error(f"❌ Error al actualizar: {error}")
+                                    if DEBUG_MODE:
+                                        st.write("Detalles del error:", error)
                             except Exception as e:
                                 st.error(f"❌ Error inesperado: {str(e)}")
+                                if DEBUG_MODE:
+                                    st.exception(e)
 
                 st.divider()
 
@@ -1603,7 +1656,7 @@ st.markdown('<div class="section-container">', unsafe_allow_html=True)
 st.markdown("### 📋 Resumen de la jornada")
 
 # Función auxiliar para formatear fechas
-def format_fecha(fecha, formato='%d/%m/%Y %H:%M:%S'):
+def format_fecha(fecha, formato='%d/%m/%Y %H:%M'):
     """Formatea una fecha para visualización consistente"""
     if pd.isna(fecha) or fecha is None:
         return "Fecha no disponible"
@@ -1679,6 +1732,6 @@ else:
     st.info("No hay reclamos en curso en este momento.")
 
 # Mostrar fecha y hora actual del sistema
-st.markdown(f"*Última actualización: {datetime.now(argentina).strftime('%d/%m/%Y %H:%M:%S')}*")
+st.markdown(f"*Última actualización: {datetime.now(argentina).strftime('%d/%m/%Y %H:%M')}*")
 
 st.markdown('</div>', unsafe_allow_html=True)
