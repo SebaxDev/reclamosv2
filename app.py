@@ -499,7 +499,7 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
                     column_config={
                         "Fecha y hora": st.column_config.DatetimeColumn(
                             "Fecha y hora",
-                            format="DD/MM/YYYY HH:mm:ss"
+                            format="DD/MM/YYYY HH:mm"
                         )
                     })
 
