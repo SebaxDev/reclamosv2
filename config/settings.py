@@ -9,7 +9,7 @@ Versión 2.0 - Con gestión de usuarios y permisos
 SHEET_ID = "13R_3Mdr25Jd-nGhK7CxdcbKkFWLc0LPdYrOLOY8sZJo"
 WORKSHEET_RECLAMOS = "Reclamos"
 WORKSHEET_CLIENTES = "Clientes"
-WORKSHEET_USUARIOS = "usuarios"  # Nueva hoja para usuarios
+WORKSHEET_USUARIOS = "usuarios"
 
 # --------------------------
 # ESTRUCTURAS DE DATOS
@@ -102,3 +102,9 @@ def rol_tiene_permiso(rol, permiso_requerido):
 # --------------------------
 COLOR_ADMIN = "#FF5733"  # Naranja
 COLOR_OFICINA = "#338AFF"  # Azul
+
+# --------------------------
+# MODO DEPURACIÓN
+# --------------------------
+# Modo de depuración (True/False)
+DEBUG_MODE = False  # Cambiar a True si necesitas ver mensajes de depuración
