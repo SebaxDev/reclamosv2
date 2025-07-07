@@ -726,13 +726,13 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
 elif opcion == "Gestión de clientes" and has_permission('gestion_clientes'):
     st.markdown('<div class="section-container">', unsafe_allow_html=True)
     st.subheader("🗂️ Gestión de clientes")
-    
+
     # Pestañas para separar las funcionalidades
     tab_historial, tab_edicion = st.tabs(["📜 Historial de cliente", "🛠️ Editar/Crear cliente"])
-    
+
     with tab_historial:
         st.subheader("📜 Historial de reclamos por cliente")
-        
+
         historial_cliente = st.text_input("🔍 Ingresá N° de Cliente para ver su historial", 
                                         placeholder="Número de cliente", 
                                         key="input_historial").strip()
@@ -751,25 +751,16 @@ elif opcion == "Gestión de clientes" and has_permission('gestion_clientes'):
                         errors='coerce'  # Convierte errores a NaT
                     )
                     historial = historial.sort_values("Fecha y hora", ascending=False)
-                    
-                    # Función para formatear fechas
-                    def format_fecha(fecha):
-                        if pd.isna(fecha):
-                            return "Fecha no disponible"
-                        try:
-                            return fecha.strftime('%d/%m/%Y %H:%M')
-                        except:
-                            return "Fecha inválida"
-                    
+
                     # Aplicar formato a la columna de fecha para visualización
                     historial_display = historial.copy()
-                    historial_display["Fecha y hora"] = historial_display["Fecha y hora"].apply(format_fecha)
+                    historial_display["Fecha y hora"] = historial_display["Fecha y hora"].apply(lambda f: format_fecha(f, '%d/%m/%Y %H:%M'))
                 except Exception as e:
                     st.error(f"⚠️ Error al procesar fechas del historial: {str(e)}")
                     historial_display = historial.copy()
 
                 st.success(f"🔎 Se encontraron {len(historial)} reclamos para el cliente {historial_cliente}.")
-                
+
                 # Mostrar información del cliente
                 cliente_info = df_clientes[df_clientes["Nº Cliente"] == historial_cliente]
                 if not cliente_info.empty:
@@ -782,14 +773,14 @@ elif opcion == "Gestión de clientes" and has_permission('gestion_clientes'):
                             st.markdown(f"**📍 Dirección:** {cliente['Dirección']}")
                         with col3:
                             st.markdown(f"**📞 Teléfono:** {cliente['Teléfono']}")
-                
+
                 # Mostrar historial en tabla con fechas formateadas
                 st.dataframe(
                     historial_display[["Fecha y hora", "Tipo de reclamo", "Estado", "Técnico", "N° de Precinto", "Detalles"]],
                     use_container_width=True,
                     height=400
                 )
-                
+
                 # Opción para exportar a CSV (manteniendo los datos originales)
                 csv = historial.to_csv(index=False).encode('utf-8')
                 st.download_button(
@@ -800,11 +791,11 @@ elif opcion == "Gestión de clientes" and has_permission('gestion_clientes'):
                 )
             else:
                 st.info("❕ Este cliente no tiene reclamos registrados.")
-    
+
     with tab_edicion:
         if user_role == 'admin':
             st.subheader("🛠️ Editar datos de un cliente")
-            
+
             cliente_editar = st.text_input("🔎 Ingresá N° de Cliente a editar", 
                                         placeholder="Número de cliente",
                                         key="input_editar_cliente").strip()
@@ -815,7 +806,7 @@ elif opcion == "Gestión de clientes" and has_permission('gestion_clientes'):
 
                 if not cliente_row.empty:
                     cliente_actual = cliente_row.iloc[0]
-                    
+
                     with st.form("editar_cliente_form"):
                         col1, col2 = st.columns(2)
                         with col1:
@@ -824,7 +815,7 @@ elif opcion == "Gestión de clientes" and has_permission('gestion_clientes'):
                         with col2:
                             nueva_direccion = st.text_input("📍 Dirección", value=cliente_actual.get("Dirección", ""))
                             nuevo_telefono = st.text_input("📞 Teléfono", value=cliente_actual.get("Teléfono", ""))
-                        
+
                         nuevo_precinto = st.text_input("🔒 N° de Precinto", 
                                                     value=cliente_actual.get("N° de Precinto", ""),
                                                     help="Número de precinto del medidor")
@@ -834,8 +825,8 @@ elif opcion == "Gestión de clientes" and has_permission('gestion_clientes'):
                     if actualizar:
                         with st.spinner("Actualizando cliente..."):
                             try:
-                                index = cliente_row.index[0] + 2  # +2 porque la hoja empieza en fila 2
-                                
+                                index = cliente_row.index[0] + 2
+
                                 updates = [
                                     {"range": f"B{index}", "values": [[nuevo_sector.upper()]]},
                                     {"range": f"C{index}", "values": [[nuevo_nombre.upper()]]},
@@ -843,14 +834,14 @@ elif opcion == "Gestión de clientes" and has_permission('gestion_clientes'):
                                     {"range": f"E{index}", "values": [[nuevo_telefono]]},
                                     {"range": f"F{index}", "values": [[nuevo_precinto]]}
                                 ]
-                                
+
                                 success, error = api_manager.safe_sheet_operation(
                                     batch_update_sheet,
                                     sheet_clientes,
                                     updates,
                                     is_batch=True
                                 )
-                                
+
                                 if success:
                                     st.success("✅ Cliente actualizado correctamente.")
                                     st.cache_data.clear()
@@ -858,13 +849,12 @@ elif opcion == "Gestión de clientes" and has_permission('gestion_clientes'):
                                     st.rerun()
                                 else:
                                     st.error(f"❌ Error al actualizar: {error}")
-                                    
+
                             except Exception as e:
                                 st.error(f"❌ Error inesperado: {str(e)}")
                 else:
                     st.warning("⚠️ Cliente no encontrado.")
 
-            # Formulario para nuevo cliente
             st.markdown("---")
             st.subheader("🆕 Cargar nuevo cliente")
 
@@ -876,7 +866,7 @@ elif opcion == "Gestión de clientes" and has_permission('gestion_clientes'):
                 with col2:
                     nuevo_nombre = st.text_input("👤 Nombre", placeholder="Nombre completo")
                     nueva_direccion = st.text_input("📍 Dirección", placeholder="Dirección completa")
-                
+
                 nuevo_telefono = st.text_input("📞 Teléfono", placeholder="Número de contacto")
                 nuevo_precinto = st.text_input("🔒 N° de Precinto (opcional)", placeholder="Número de precinto")
 
@@ -894,12 +884,12 @@ elif opcion == "Gestión de clientes" and has_permission('gestion_clientes'):
                                     nuevo_nro, nuevo_sector.upper(), nuevo_nombre.upper(),
                                     nueva_direccion.upper(), nuevo_telefono, nuevo_precinto
                                 ]
-                                
+
                                 success, error = api_manager.safe_sheet_operation(
                                     sheet_clientes.append_row,
                                     nueva_fila
                                 )
-                                
+
                                 if success:
                                     st.success("✅ Nuevo cliente agregado correctamente.")
                                     st.cache_data.clear()
@@ -907,12 +897,12 @@ elif opcion == "Gestión de clientes" and has_permission('gestion_clientes'):
                                     st.rerun()
                                 else:
                                     st.error(f"❌ Error al guardar: {error}")
-                                    
+
                             except Exception as e:
                                 st.error(f"❌ Error inesperado: {str(e)}")
         else:
             st.warning("🔒 Solo los administradores pueden editar información de clientes")
-    
+
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --------------------------
@@ -926,42 +916,30 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
     try:
         # Preparar datos con manejo robusto de fechas
         df_pdf = df_reclamos.copy()
-        
+
         # Convertir fechas y manejar posibles errores
         df_pdf["Fecha y hora"] = pd.to_datetime(
             df_pdf["Fecha y hora"],
-            dayfirst=True,  # Para formato dd/mm/yyyy
-            errors='coerce'  # Convierte errores a NaT
+            dayfirst=True,
+            errors='coerce'
         )
-        
-        # Merge con datos del cliente
+
         df_merged = pd.merge(
-            df_pdf, 
-            df_clientes[["Nº Cliente", "N° de Precinto"]], 
-            on="Nº Cliente", 
-            how="left", 
+            df_pdf,
+            df_clientes[["Nº Cliente", "N° de Precinto"]],
+            on="Nº Cliente",
+            how="left",
             suffixes=("", "_cliente")
         )
 
-        # Función para formatear fechas
-        def format_fecha(fecha):
-            if pd.isna(fecha):
-                return "Fecha no disponible"
-            try:
-                return fecha.strftime('%d/%m/%Y %H:%M')
-            except:
-                return "Fecha inválida"
-
-        # Mostrar reclamos pendientes con fechas formateadas
         with st.expander("🕒 Reclamos pendientes de resolución", expanded=True):
             df_pendientes = df_merged[df_merged["Estado"] == "Pendiente"]
             if not df_pendientes.empty:
-                # Crear copia para mostrar con fechas formateadas
                 df_pendientes_display = df_pendientes.copy()
-                df_pendientes_display["Fecha y hora"] = df_pendientes_display["Fecha y hora"].apply(format_fecha)
-                
+                df_pendientes_display["Fecha y hora"] = df_pendientes_display["Fecha y hora"].apply(lambda f: format_fecha(f, '%d/%m/%Y %H:%M'))
+
                 st.dataframe(
-                    df_pendientes_display[["Fecha y hora", "Nº Cliente", "Nombre", "Dirección", "Sector", "Tipo de reclamo"]], 
+                    df_pendientes_display[["Fecha y hora", "Nº Cliente", "Nombre", "Dirección", "Sector", "Tipo de reclamo"]],
                     use_container_width=True
                 )
             else:
@@ -969,19 +947,17 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
 
         solo_pendientes = st.checkbox("🧾 Mostrar solo reclamos pendientes para imprimir", value=True)
 
-        # --- IMPRIMIR POR TIPO DE RECLAMO ---
         st.markdown("### 🧾 Imprimir reclamos por tipo")
-        
         tipos_disponibles = sorted(df_merged["Tipo de reclamo"].unique())
         tipos_seleccionados = st.multiselect(
-            "Seleccioná tipos de reclamo a imprimir", 
+            "Seleccioná tipos de reclamo a imprimir",
             tipos_disponibles,
             default=tipos_disponibles[0] if tipos_disponibles else None
         )
 
         if tipos_seleccionados:
             reclamos_filtrados = df_merged[
-                (df_merged["Estado"] == "Pendiente") & 
+                (df_merged["Estado"] == "Pendiente") &
                 (df_merged["Tipo de reclamo"].isin(tipos_seleccionados))
             ]
 
@@ -994,21 +970,19 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
                         c = canvas.Canvas(buffer, pagesize=A4)
                         width, height = A4
                         y = height - 40
-                        
-                        # Encabezado
+
                         c.setFont("Helvetica-Bold", 18)
                         c.drawString(40, y, f"RECLAMOS PENDIENTES - {datetime.now().strftime('%d/%m/%Y')}")
                         y -= 30
-                        
+
                         for i, (_, reclamo) in enumerate(reclamos_filtrados.iterrows()):
                             c.setFont("Helvetica-Bold", 16)
                             c.drawString(40, y, f"#{reclamo['Nº Cliente']} - {reclamo['Nombre']}")
                             y -= 15
                             c.setFont("Helvetica", 13)
-                            
-                            # Formatear fecha para PDF
+
                             fecha_pdf = format_fecha(reclamo['Fecha y hora'], '%d/%m/%Y %H:%M')
-                            
+
                             lineas = [
                                 f"Fecha: {fecha_pdf}",
                                 f"Dirección: {reclamo['Dirección']} - Tel: {reclamo['Teléfono']}",
@@ -1016,15 +990,15 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
                                 f"Tipo: {reclamo['Tipo de reclamo']}",
                                 f"Detalles: {reclamo['Detalles'][:100]}..." if len(reclamo['Detalles']) > 100 else f"Detalles: {reclamo['Detalles']}",
                             ]
-                            
+
                             for linea in lineas:
                                 c.drawString(40, y, linea)
                                 y -= 12
-                            
+
                             y -= 8
                             c.line(40, y, width-40, y)
                             y -= 15
-                            
+
                             if y < 100 and i < len(reclamos_filtrados) - 1:
                                 agregar_pie_pdf(c, width, height)
                                 c.showPage()
@@ -1036,7 +1010,7 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
                         agregar_pie_pdf(c, width, height)
                         c.save()
                         buffer.seek(0)
-                        
+
                         st.download_button(
                             label="📥 Descargar PDF filtrado por tipo",
                             data=buffer,
@@ -1046,14 +1020,13 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
             else:
                 st.info("No hay reclamos pendientes para los tipos seleccionados.")
 
-        # --- SELECCIÓN MANUAL ---
         st.markdown("### 📋 Selección manual de reclamos")
-        
+
         if solo_pendientes:
             df_merged = df_merged[df_merged["Estado"] == "Pendiente"]
 
         selected = st.multiselect(
-            "Seleccioná los reclamos a imprimir:", 
+            "Seleccioná los reclamos a imprimir:",
             df_merged.index,
             format_func=lambda x: f"{df_merged.at[x, 'Nº Cliente']} - {df_merged.at[x, 'Nombre']}",
             key="multiselect_reclamos"
@@ -1065,8 +1038,7 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
                 c = canvas.Canvas(buffer, pagesize=A4)
                 width, height = A4
                 y = height - 40
-                
-                # Encabezado
+
                 c.setFont("Helvetica-Bold", 18)
                 c.drawString(40, y, f"RECLAMOS SELECCIONADOS - {datetime.now().strftime('%d/%m/%Y')}")
                 y -= 30
@@ -1077,10 +1049,9 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
                     c.drawString(40, y, f"#{reclamo['Nº Cliente']} - {reclamo['Nombre']}")
                     y -= 15
                     c.setFont("Helvetica", 13)
-                    
-                    # Formatear fecha para PDF
+
                     fecha_pdf = format_fecha(reclamo['Fecha y hora'], '%d/%m/%Y %H:%M')
-                    
+
                     lineas = [
                         f"Fecha: {fecha_pdf}",
                         f"Dirección: {reclamo['Dirección']} - Tel: {reclamo['Teléfono']}",
@@ -1088,15 +1059,15 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
                         f"Tipo: {reclamo['Tipo de reclamo']}",
                         f"Detalles: {reclamo['Detalles'][:100]}..." if len(reclamo['Detalles']) > 100 else f"Detalles: {reclamo['Detalles']}",
                     ]
-                    
+
                     for linea in lineas:
                         c.drawString(40, y, linea)
                         y -= 12
-                    
+
                     y -= 8
                     c.line(40, y, width-40, y)
                     y -= 15
-                    
+
                     if y < 100 and i < len(selected) - 1:
                         agregar_pie_pdf(c, width, height)
                         c.showPage()
@@ -1108,7 +1079,7 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
                 agregar_pie_pdf(c, width, height)
                 c.save()
                 buffer.seek(0)
-                
+
                 st.download_button(
                     label="📥 Descargar PDF seleccionados",
                     data=buffer,
@@ -1119,9 +1090,7 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
         elif not selected:
             st.info("Seleccioná al menos un reclamo para generar el PDF.")
 
-        # --- EXPORTAR TODOS LOS ACTIVOS ---
         st.markdown("### 📦 Exportar todos los reclamos 'Pendiente' y 'En curso'")
-
         todos_filtrados = df_merged[df_merged["Estado"].isin(["Pendiente", "En curso"])].copy()
 
         if not todos_filtrados.empty:
@@ -1141,10 +1110,9 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
                         c.drawString(40, y, f"#{reclamo['Nº Cliente']} - {reclamo['Nombre']}")
                         y -= 15
                         c.setFont("Helvetica", 13)
-                        
-                        # Formatear fecha para PDF
+
                         fecha_pdf = format_fecha(reclamo['Fecha y hora'], '%d/%m/%Y %H:%M')
-                        
+
                         lineas = [
                             f"Fecha: {fecha_pdf}",
                             f"Dirección: {reclamo['Dirección']} - Tel: {reclamo['Teléfono']}",
@@ -1183,7 +1151,7 @@ elif opcion == "Imprimir reclamos" and has_permission('imprimir_reclamos'):
 
     except Exception as e:
         st.error(f"❌ Error al generar PDF: {str(e)}")
-    
+
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --------------------------
