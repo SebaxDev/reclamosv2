@@ -1325,70 +1325,70 @@ elif opcion == "Cierre de Reclamos" and user_role == 'admin':
     # Normalización de datos
     df_reclamos["Nº Cliente"] = df_reclamos["Nº Cliente"].astype(str).str.strip()
     df_reclamos["Técnico"] = df_reclamos["Técnico"].astype(str).fillna("")
-    
+
     # Procesamiento robusto de fechas usando la función centralizada
     df_reclamos["Fecha y hora"] = df_reclamos["Fecha y hora"].apply(parse_fecha)
 
-    # 👉 NUEVO: Buscar y reasignar técnico por cliente
-    with st.expander("🔄 Reasignar técnico por Nº de cliente"):
-        cliente_busqueda = st.text_input("🔢 Ingresá el N° de Cliente para buscar", key="buscar_cliente_tecnico").strip()
-        if cliente_busqueda:
-            reclamos_filtrados = df_reclamos[
-                (df_reclamos["Nº Cliente"] == cliente_busqueda) &
-                (df_reclamos["Estado"].isin(["Pendiente", "En curso"]))
+    # 👉 NUEVO: Buscar y reasignar técnico por cliente (sin expander)
+    st.markdown("### 🔄 Reasignar técnico por Nº de cliente")
+    cliente_busqueda = st.text_input("🔢 Ingresá el N° de Cliente para buscar", key="buscar_cliente_tecnico").strip()
+    if cliente_busqueda:
+        reclamos_filtrados = df_reclamos[
+            (df_reclamos["Nº Cliente"] == cliente_busqueda) &
+            (df_reclamos["Estado"].isin(["Pendiente", "En curso"]))
+        ]
+
+        if not reclamos_filtrados.empty:
+            reclamo = reclamos_filtrados.iloc[0]
+            st.markdown(f"📌 **Reclamo encontrado:** {reclamo['Tipo de reclamo']} - Estado: {reclamo['Estado']}")
+            st.markdown(f"👷 Técnico actual: `{reclamo['Técnico'] or 'No asignado'}`")
+            st.markdown(f"📅 Fecha del reclamo: `{format_fecha(reclamo['Fecha y hora'])}`")
+
+            tecnicos_actuales_raw = [t.strip().lower() for t in reclamo["Técnico"].split(",") if t.strip()]
+            tecnicos_actuales = [
+                tecnico for tecnico in TECNICOS_DISPONIBLES
+                if tecnico.lower() in tecnicos_actuales_raw
             ]
+            nuevo_tecnico_multiselect = st.multiselect(
+                "👷 Nuevo técnico asignado",
+                options=TECNICOS_DISPONIBLES,
+                default=tecnicos_actuales,
+                key="nuevo_tecnico_input"
+            )
 
-            if not reclamos_filtrados.empty:
-                reclamo = reclamos_filtrados.iloc[0]
-                st.markdown(f"📌 **Reclamo encontrado:** {reclamo['Tipo de reclamo']} - Estado: {reclamo['Estado']}")
-                st.markdown(f"👷 Técnico actual: `{reclamo['Técnico'] or 'No asignado'}`")
-                st.markdown(f"📅 Fecha del reclamo: `{format_fecha(reclamo['Fecha y hora'])}`")
+            if st.button("💾 Guardar nuevo técnico", key="guardar_tecnico"):
+                with st.spinner("Actualizando técnico..."):
+                    try:
+                        fila_index = reclamo.name + 2
+                        nuevo_tecnico = ", ".join(nuevo_tecnico_multiselect).upper()
 
-                tecnicos_actuales_raw = [t.strip().lower() for t in reclamo["Técnico"].split(",") if t.strip()]
-                tecnicos_actuales = [
-                    tecnico for tecnico in TECNICOS_DISPONIBLES
-                    if tecnico.lower() in tecnicos_actuales_raw
-                ]
-                nuevo_tecnico_multiselect = st.multiselect(
-                    "👷 Nuevo técnico asignado",
-                    options=TECNICOS_DISPONIBLES,
-                    default=tecnicos_actuales,
-                    key="nuevo_tecnico_input"
-                )
+                        updates = [{"range": f"J{fila_index}", "values": [[nuevo_tecnico]]}]
 
-                if st.button("💾 Guardar nuevo técnico", key="guardar_tecnico"):
-                    with st.spinner("Actualizando técnico..."):
-                        try:
-                            fila_index = reclamo.name + 2
-                            nuevo_tecnico = ", ".join(nuevo_tecnico_multiselect).upper()
+                        if reclamo['Estado'] == "Pendiente":
+                            updates.append({"range": f"I{fila_index}", "values": [["En curso"]]})
 
-                            updates = [{"range": f"J{fila_index}", "values": [[nuevo_tecnico]]}]
+                        success, error = api_manager.safe_sheet_operation(
+                            batch_update_sheet,
+                            sheet_reclamos,
+                            updates,
+                            is_batch=True
+                        )
 
-                            if reclamo['Estado'] == "Pendiente":
-                                updates.append({"range": f"I{fila_index}", "values": [["En curso"]]})
-
-                            success, error = api_manager.safe_sheet_operation(
-                                batch_update_sheet,
-                                sheet_reclamos,
-                                updates,
-                                is_batch=True
-                            )
-
-                            if success:
-                                st.success("✅ Técnico actualizado correctamente.")
-                                st.cache_data.clear()
-                                time.sleep(3)
-                                st.rerun()
-                            else:
-                                st.error(f"❌ Error al actualizar: {error}")
-                                if DEBUG_MODE:
-                                    st.write("Detalles del error:", error)
-                        except Exception as e:
-                            st.error(f"❌ Error inesperado: {str(e)}")
+                        if success:
+                            st.success("✅ Técnico actualizado correctamente.")
+                            st.cache_data.clear()
+                            time.sleep(3)
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Error al actualizar: {error}")
                             if DEBUG_MODE:
-                                st.exception(e)
-            else:
-                st.warning("⚠️ No se encontró un reclamo pendiente o en curso para ese cliente.")
+                                st.write("Detalles del error:", error)
+                    except Exception as e:
+                        st.error(f"❌ Error inesperado: {str(e)}")
+                        if DEBUG_MODE:
+                            st.exception(e)
+        else:
+            st.warning("⚠️ No se encontró un reclamo pendiente o en curso para ese cliente.")
 
     # 🔽 Parte clásica: ver y resolver reclamos en curso
     en_curso = df_reclamos[df_reclamos["Estado"] == "En curso"].copy()
@@ -1397,9 +1397,9 @@ elif opcion == "Cierre de Reclamos" and user_role == 'admin':
         st.info("📭 No hay reclamos en curso en este momento.")
     else:
         tecnicos_unicos = sorted(set(
-            tecnico.strip().upper() 
-            for t in en_curso["Técnico"] 
-            for tecnico in t.split(",") 
+            tecnico.strip().upper()
+            for t in en_curso["Técnico"]
+            for tecnico in t.split(",")
             if tecnico.strip()
         ))
 
@@ -1413,7 +1413,7 @@ elif opcion == "Cierre de Reclamos" and user_role == 'admin':
         st.write("### 📋 Reclamos en curso:")
         df_mostrar = en_curso[["Fecha_formateada", "Nº Cliente", "Nombre", "Tipo de reclamo", "Técnico"]].copy()
         df_mostrar = df_mostrar.rename(columns={"Fecha_formateada": "Fecha y hora"})
-        
+
         st.dataframe(df_mostrar, use_container_width=True, height=400,
                     column_config={
                         "Fecha y hora": st.column_config.TextColumn(
