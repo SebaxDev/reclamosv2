@@ -1164,15 +1164,21 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
                         st.rerun()
 
             with col1.expander("ℹ️ Ver detalles"):
-                st.markdown(f"**📟 Nº Cliente:** {row['Nº Cliente']}\n\n**👤 Nombre:** {row['Nombre']}\n\n**📍 Dirección:** {row['Dirección']}\n\n**📞 Teléfono:** {row['Teléfono']}\n\n**📅 Fecha completa:** {row['Fecha y hora'].strftime('%d/%m/%Y %H:%M') if not pd.isna(row['Fecha y hora']) else 'Sin fecha'}")
+                st.markdown(f"""
+                **📟 Nº Cliente:** {row['Nº Cliente']}  
+                **👤 Nombre:** {row['Nombre']}  
+                **📍 Dirección:** {row['Dirección']}  
+                **📞 Teléfono:** {row['Teléfono']}  
+                **📅 Fecha completa:** {row['Fecha y hora'].strftime('%d/%m/%Y %H:%M') if not pd.isna(row['Fecha y hora']) else 'Sin fecha'}  
+                """)
                 if row.get("Detalles"):
                     st.markdown(f"**📝 Detalles:** {row['Detalles'][:250]}{'...' if len(row['Detalles']) > 250 else ''}")
-            st.divider()
+        st.divider()
 
     st.markdown("---")
     st.markdown("### 🧺 Reclamos asignados por grupo")
 
-    materiales_por_grupo = {}  # acumulador general para usar también en PDF
+    materiales_por_grupo = {}
 
     for grupo in ["Grupo A", "Grupo B", "Grupo C", "Grupo D"][:grupos_activos]:
         reclamos_ids = st.session_state.asignaciones_grupos[grupo]
@@ -1226,6 +1232,29 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
 
     st.markdown("---")
 
+    if st.button("💾 Guardar cambios y pasar a 'En curso'", use_container_width=True):
+        with st.spinner("Actualizando reclamos..."):
+            updates = []
+            for grupo, ids in st.session_state.asignaciones_grupos.items():
+                tecnicos = st.session_state.tecnicos_grupos[grupo]
+                tecnicos_str = ", ".join(tecnicos).upper() if tecnicos else ""
+                for reclamo_id in ids:
+                    df_reclamos["id"] = df_reclamos["Nº Cliente"].astype(str).str.strip()
+                    fila = df_reclamos[df_reclamos["id"] == reclamo_id]
+                    if not fila.empty:
+                        index = fila.index[0] + 2
+                        updates.append({"range": f"I{index}", "values": [["En curso"]]})
+                        updates.append({"range": f"J{index}", "values": [[tecnicos_str]]})
+            if updates:
+                success, error = api_manager.safe_sheet_operation(batch_update_sheet, sheet_reclamos, updates, is_batch=True)
+                if success:
+                    st.success("✅ Reclamos actualizados correctamente en la hoja.")
+                    st.cache_data.clear()
+                    time.sleep(3)
+                    st.rerun()
+                else:
+                    st.error("❌ Error al actualizar: " + str(error))
+
     if st.button("📅 Generar PDF de asignaciones por grupo", use_container_width=True):
         with st.spinner("Generando PDF..."):
             buffer = io.BytesIO()
@@ -1236,7 +1265,7 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
 
             for grupo in ["Grupo A", "Grupo B", "Grupo C", "Grupo D"][:grupos_activos]:
                 reclamos_ids = st.session_state.asignaciones_grupos[grupo]
-                tecnicos = st.session_state.tecnicos_grpos[grupo]
+                tecnicos = st.session_state.tecnicos_grupos[grupo]
 
                 if not reclamos_ids:
                     continue
@@ -1288,7 +1317,6 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
                             c.drawString(40, y, f"{grupo} (cont.)")
                             y -= 25
 
-                # Mostrar materiales mínimos estimados por grupo al final del bloque
                 materiales = materiales_por_grupo.get(grupo, {})
                 if materiales:
                     y -= 10
