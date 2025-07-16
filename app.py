@@ -1164,14 +1164,9 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
                         st.rerun()
 
             with col1.expander("ℹ️ Ver detalles"):
-                st.markdown(f"**📟 Nº Cliente:** {row['Nº Cliente']}")
-                st.markdown(f"**👤 Nombre:** {row['Nombre']}")
-                st.markdown(f"**📍 Dirección:** {row['Dirección']}")
-                st.markdown(f"**📞 Teléfono:** {row['Teléfono']}")
+                st.markdown(f"**📟 Nº Cliente:** {row['Nº Cliente']}\n\n**👤 Nombre:** {row['Nombre']}\n\n**📍 Dirección:** {row['Dirección']}\n\n**📞 Teléfono:** {row['Teléfono']}\n\n**📅 Fecha completa:** {row['Fecha y hora'].strftime('%d/%m/%Y %H:%M') if not pd.isna(row['Fecha y hora']) else 'Sin fecha'}")
                 if row.get("Detalles"):
                     st.markdown(f"**📝 Detalles:** {row['Detalles'][:250]}{'...' if len(row['Detalles']) > 250 else ''}")
-                fecha_completa = format_fecha(row["Fecha y hora"]) if pd.isna(row["Fecha y hora"]) else row["Fecha y hora"].strftime('%d/%m/%Y %H:%M')
-                st.markdown(f"**📅 Fecha completa:** {fecha_completa}")
             st.divider()
 
     st.markdown("---")
@@ -1181,6 +1176,32 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
         reclamos_ids = st.session_state.asignaciones_grupos[grupo]
         tecnicos = st.session_state.tecnicos_grupos[grupo]
         st.markdown(f"#### 🛠️ {grupo} - Técnicos: {', '.join(tecnicos) if tecnicos else 'Sin asignar'} ({len(reclamos_ids)} reclamos)")
+
+        reclamos_grupo = df_pendientes[df_pendientes["id"].isin(reclamos_ids)]
+
+        # Mostrar resumen de tipos de reclamo y sectores
+        resumen_tipos = " - ".join([f"{v} {k}" for k, v in reclamos_grupo["Tipo de reclamo"].value_counts().items()])
+        sectores = ", ".join(sorted(set(reclamos_grupo["Sector"].astype(str))))
+        st.markdown(f"{resumen_tipos}")
+        st.markdown(f"Sectores: {sectores}")
+
+        # Calcular materiales estimados
+        materiales_total = {}
+        for _, row in reclamos_grupo.iterrows():
+            tipo = row["Tipo de reclamo"]
+            sector = str(row["Sector"])
+            materiales_tipo = MATERIALES_POR_RECLAMO.get(tipo, {})
+            for mat, cant in materiales_tipo.items():
+                key = mat
+                if "router" in mat:
+                    marca = ROUTER_POR_SECTOR.get(sector, "vsol")
+                    key = f"router_{marca}"
+                materiales_total[key] = materiales_total.get(key, 0) + cant
+
+        if materiales_total:
+            st.markdown("📦 **Materiales mínimos estimados:**")
+            for mat, cant in materiales_total.items():
+                st.markdown(f"- {cant} {mat.replace('_', ' ').title()}")
 
         if reclamos_ids:
             for reclamo_id in reclamos_ids:
@@ -1222,7 +1243,6 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
                 c.showPage()
                 y = height - 40
 
-                # Agrupar resumen de tipos de reclamos
                 tipos = df_pendientes[df_pendientes["id"].isin(reclamos_ids)]["Tipo de reclamo"].value_counts()
                 resumen_tipos = " - ".join([f"{v} {k}" for k, v in tipos.items()])
 
