@@ -1104,27 +1104,18 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
     st.markdown('<div class="section-container">', unsafe_allow_html=True)
     st.subheader("🧭 Asignación de reclamos a grupos de trabajo")
 
-    # Inicialización de variables de sesión
     if "asignaciones_grupos" not in st.session_state:
         st.session_state.asignaciones_grupos = {
-            "Grupo A": [],
-            "Grupo B": [],
-            "Grupo C": [],
-            "Grupo D": []
+            "Grupo A": [], "Grupo B": [], "Grupo C": [], "Grupo D": []
         }
 
     if "tecnicos_grupos" not in st.session_state:
         st.session_state.tecnicos_grupos = {
-            "Grupo A": [],
-            "Grupo B": [],
-            "Grupo C": [],
-            "Grupo D": []
+            "Grupo A": [], "Grupo B": [], "Grupo C": [], "Grupo D": []
         }
 
-    # Configuración de grupos
     grupos_activos = st.slider("🛠️ Cantidad de grupos de trabajo activos", 1, 4, 2)
 
-    # Asignación de técnicos
     st.markdown("### 👥 Asignar técnicos a cada grupo")
     for grupo in list(st.session_state.tecnicos_grupos.keys())[:grupos_activos]:
         st.session_state.tecnicos_grupos[grupo] = st.multiselect(
@@ -1137,28 +1128,15 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
     st.markdown("---")
     st.markdown("### 📋 Reclamos pendientes para asignar")
 
-    # Preparación de datos de reclamos
     df_pendientes = df_reclamos[df_reclamos["Estado"] == "Pendiente"].copy()
     df_pendientes["id"] = df_pendientes["Nº Cliente"].astype(str).str.strip()
-    
-    # Manejo mejorado de fechas
-    df_pendientes["Fecha y hora"] = pd.to_datetime(
-        df_pendientes["Fecha y hora"],
-        dayfirst=True,
-        format='mixed',
-        errors='coerce'
-    )
-    
-    # Función auxiliar para formatear fechas
-    def format_fecha(fecha):
-        if pd.isna(fecha):
-            return "Sin fecha"
-        try:
-            return fecha.strftime('%d/%m/%Y')
-        except:
-            return "Fecha inválida"
+    df_pendientes["Fecha y hora"] = pd.to_datetime(df_pendientes["Fecha y hora"], dayfirst=True, errors='coerce')
 
-    # Ordenamiento de reclamos
+    def format_fecha(fecha):
+        if pd.isna(fecha): return "Sin fecha"
+        try: return fecha.strftime('%d/%m/%Y')
+        except: return "Fecha inválida"
+
     orden = st.selectbox("📊 Ordenar reclamos por:", ["Fecha más reciente", "Sector", "Tipo de reclamo"])
     if orden == "Fecha más reciente":
         df_pendientes = df_pendientes.sort_values("Fecha y hora", ascending=False)
@@ -1167,11 +1145,9 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
     elif orden == "Tipo de reclamo":
         df_pendientes = df_pendientes.sort_values("Tipo de reclamo")
 
-    # Filtrado de reclamos disponibles
     asignados = [r for reclamos in st.session_state.asignaciones_grupos.values() for r in reclamos]
     df_disponibles = df_pendientes[~df_pendientes["id"].isin(asignados)]
 
-    # Visualización de reclamos disponibles
     for idx, row in df_disponibles.iterrows():
         with st.container():
             col1, *cols_grupo = st.columns([4] + [1]*grupos_activos)
@@ -1182,31 +1158,25 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
             for i, grupo in enumerate(["Grupo A", "Grupo B", "Grupo C", "Grupo D"][:grupos_activos]):
                 tecnicos = st.session_state.tecnicos_grupos[grupo]
                 tecnicos_str = ", ".join(tecnicos[:2]) + ("..." if len(tecnicos) > 2 else "") if tecnicos else "Sin técnicos"
-                boton_label = f"➕ {grupo[-1]} ({tecnicos_str})"
-                boton_color = "primary" if tecnicos else "secondary"
-                if cols_grupo[i].button(boton_label, key=f"asignar_{grupo}_{row['id']}", type=boton_color):
+                if cols_grupo[i].button(f"➕ {grupo[-1]} ({tecnicos_str})", key=f"asignar_{grupo}_{row['id']}"):
                     if row["id"] not in asignados:
                         st.session_state.asignaciones_grupos[grupo].append(row["id"])
                         st.rerun()
 
             with col1.expander("ℹ️ Ver detalles"):
-                st.markdown(f"**🧾 Nº Cliente:** {row['Nº Cliente']}")
+                st.markdown(f"**📟 Nº Cliente:** {row['Nº Cliente']}")
                 st.markdown(f"**👤 Nombre:** {row['Nombre']}")
                 st.markdown(f"**📍 Dirección:** {row['Dirección']}")
                 st.markdown(f"**📞 Teléfono:** {row['Teléfono']}")
                 if row.get("Detalles"):
                     st.markdown(f"**📝 Detalles:** {row['Detalles'][:250]}{'...' if len(row['Detalles']) > 250 else ''}")
-                
-                # Mostrar fecha completa en los detalles
                 fecha_completa = format_fecha(row["Fecha y hora"]) if pd.isna(row["Fecha y hora"]) else row["Fecha y hora"].strftime('%d/%m/%Y %H:%M')
                 st.markdown(f"**📅 Fecha completa:** {fecha_completa}")
-
             st.divider()
 
     st.markdown("---")
     st.markdown("### 🧺 Reclamos asignados por grupo")
 
-    # Visualización de reclamos asignados con manejo de errores
     for grupo in ["Grupo A", "Grupo B", "Grupo C", "Grupo D"][:grupos_activos]:
         reclamos_ids = st.session_state.asignaciones_grupos[grupo]
         tecnicos = st.session_state.tecnicos_grupos[grupo]
@@ -1214,9 +1184,7 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
 
         if reclamos_ids:
             for reclamo_id in reclamos_ids:
-                # Verificar si el reclamo todavía existe en df_pendientes
                 reclamo_data = df_pendientes[df_pendientes["id"] == reclamo_id]
-                
                 col1, col2 = st.columns([5, 1])
                 if not reclamo_data.empty:
                     row = reclamo_data.iloc[0]
@@ -1224,73 +1192,24 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
                     resumen = f"📍 Sector {row['Sector']} - {row['Tipo de reclamo'].capitalize()} - {fecha_formateada}"
                     col1.markdown(f"**{resumen}**")
                 else:
-                    # Si el reclamo ya no está en pendientes, mostramos solo el ID
                     col1.markdown(f"**Reclamo ID: {reclamo_id} (ya no está pendiente)**")
-                
+
                 if col2.button("❌ Quitar", key=f"quitar_{grupo}_{reclamo_id}"):
                     st.session_state.asignaciones_grupos[grupo].remove(reclamo_id)
                     st.rerun()
-                
                 st.divider()
         else:
             st.info("Este grupo no tiene reclamos asignados.")
 
     st.markdown("---")
 
-    # Botón para guardar asignaciones con manejo mejorado
-    if st.button("💾 Guardar asignaciones en Google Sheets", use_container_width=True):
-        actualizaciones = []
-        reclamos_a_actualizar = []
-        
-        # Recolectar información para actualizar
-        for grupo, reclamos in st.session_state.asignaciones_grupos.items():
-            tecnicos = st.session_state.tecnicos_grupos[grupo]
-            for reclamo_id in reclamos:
-                idx = df_reclamos[df_reclamos["Nº Cliente"].astype(str).str.strip() == reclamo_id].index
-                if not idx.empty:
-                    row_idx = idx[0] + 2
-                    actualizaciones.append({
-                        "range": f"I{row_idx}", 
-                        "values": [["En curso"]]
-                    })
-                    actualizaciones.append({
-                        "range": f"J{row_idx}", 
-                        "values": [[", ".join(tecnicos).upper()]]
-                    })
-                    reclamos_a_actualizar.append(reclamo_id)
-
-        if actualizaciones:
-            with st.spinner("Actualizando en Sheets..."):
-                success, error = api_manager.safe_sheet_operation(
-                    batch_update_sheet,
-                    sheet_reclamos,
-                    actualizaciones,
-                    is_batch=True
-                )
-                if success:
-                    st.success("✅ Reclamos actualizados como 'En curso'")
-                    # Limpiar solo los reclamos que fueron actualizados
-                    for grupo in st.session_state.asignaciones_grupos:
-                        st.session_state.asignaciones_grupos[grupo] = [
-                            r for r in st.session_state.asignaciones_grupos[grupo] 
-                            if r not in reclamos_a_actualizar
-                        ]
-                    # Limpiar caché y rerun
-                    st.cache_data.clear()
-                    time.sleep(3)
-                    st.rerun()
-                else:
-                    st.error(f"❌ Error: {error}")
-        else:
-            st.warning("⚠️ No hay asignaciones para guardar.")
-
-    # Generación de PDF (se mantiene igual)
-    if st.button("📄 Generar PDF de asignaciones por grupo", use_container_width=True):
+    if st.button("📅 Generar PDF de asignaciones por grupo", use_container_width=True):
         with st.spinner("Generando PDF..."):
             buffer = io.BytesIO()
             c = canvas.Canvas(buffer, pagesize=A4)
             width, height = A4
             y = height - 40
+            hoy = datetime.now().strftime('%d/%m/%Y')
 
             for grupo in ["Grupo A", "Grupo B", "Grupo C", "Grupo D"][:grupos_activos]:
                 reclamos_ids = st.session_state.asignaciones_grupos[grupo]
@@ -1299,13 +1218,19 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
                 if not reclamos_ids:
                     continue
 
-                # SALTO DE PÁGINA por grupo
                 agregar_pie_pdf(c, width, height)
                 c.showPage()
                 y = height - 40
 
+                # Agrupar resumen de tipos de reclamos
+                tipos = df_pendientes[df_pendientes["id"].isin(reclamos_ids)]["Tipo de reclamo"].value_counts()
+                resumen_tipos = " - ".join([f"{v} {k}" for k, v in tipos.items()])
+
                 c.setFont("Helvetica-Bold", 16)
-                c.drawString(40, y, f"{grupo} - Técnicos: {', '.join(tecnicos)}")
+                c.drawString(40, y, f"{grupo} - Técnicos: {', '.join(tecnicos)} (Asignado el {hoy})")
+                y -= 20
+                c.setFont("Helvetica", 12)
+                c.drawString(40, y, resumen_tipos)
                 y -= 25
 
                 for reclamo_id in reclamos_ids:
@@ -1316,14 +1241,12 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
                         c.drawString(40, y, f"{reclamo['Nº Cliente']} - {reclamo['Nombre']}")
                         y -= 15
                         c.setFont("Helvetica", 11)
-                        
-                        # Formatear fecha para PDF
+
                         fecha_pdf = format_fecha(reclamo["Fecha y hora"]) if pd.isna(reclamo["Fecha y hora"]) else reclamo["Fecha y hora"].strftime('%d/%m/%Y %H:%M')
-                        
                         lineas = [
                             f"Fecha: {fecha_pdf}",
                             f"Dirección: {reclamo['Dirección']} - Tel: {reclamo['Teléfono']}",
-                            f"Sector: {reclamo['Sector']} - Precinto: {reclamo.get('N° de Precinto', 'N/A')}",
+                            f"Sector: {reclamo['Sector']} - Precinto: {reclamo.get('Nº de Precinto', 'N/A')}",
                             f"Tipo: {reclamo['Tipo de reclamo']}",
                             f"Detalles: {reclamo['Detalles'][:100]}..." if len(reclamo['Detalles']) > 100 else f"Detalles: {reclamo['Detalles']}",
                         ]
@@ -1350,7 +1273,7 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
             buffer.seek(0)
 
             st.download_button(
-                label="📥 Descargar PDF de asignaciones",
+                label="📅 Descargar PDF de asignaciones",
                 data=buffer,
                 file_name="asignaciones_grupos.pdf",
                 mime="application/pdf"
