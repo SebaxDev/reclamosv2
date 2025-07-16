@@ -725,183 +725,125 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
 
 elif opcion == "Gestión de clientes" and has_permission('gestion_clientes'):
     st.markdown('<div class="section-container">', unsafe_allow_html=True)
-    st.subheader("🗂️ Gestión de clientes")
+    st.subheader("🛠️ Gestión de Clientes")
 
-    # Pestañas para separar las funcionalidades
-    tab_historial, tab_edicion = st.tabs(["📜 Historial de cliente", "🛠️ Editar/Crear cliente"])
+    df_clientes["Nº Cliente"] = df_clientes["Nº Cliente"].astype(str).str.strip()
 
-    with tab_historial:
-        st.subheader("📜 Historial de reclamos por cliente")
+    if user_role == 'admin':
+        st.markdown("### ✏️ Editar datos de un cliente")
 
-        historial_cliente = st.text_input("🔍 Ingresá N° de Cliente para ver su historial", 
-                                        placeholder="Número de cliente", 
-                                        key="input_historial").strip()
+        # Generar lista de opciones para el selectbox
+        df_clientes["label"] = df_clientes.apply(
+            lambda row: f"{row['Nº Cliente']} - {row['Nombre']} - Sector {row.get('Sector', '')}",
+            axis=1
+        )
+        seleccion_cliente = st.selectbox(
+            "🔎 Seleccioná un cliente para editar",
+            options=[""] + df_clientes["label"].tolist(),
+            index=0
+        )
 
-        if historial_cliente:
-            # Normalización de datos
-            df_reclamos["Nº Cliente"] = df_reclamos["Nº Cliente"].astype(str).str.strip()
-            historial = df_reclamos[df_reclamos["Nº Cliente"] == historial_cliente]
+        if seleccion_cliente:
+            nro_cliente = seleccion_cliente.split(" - ")[0].strip()
+            cliente_row = df_clientes[df_clientes["Nº Cliente"] == nro_cliente]
 
-            if not historial.empty:
-                # Procesamiento robusto de fechas en el historial
-                try:
-                    historial["Fecha y hora"] = pd.to_datetime(
-                        historial["Fecha y hora"], 
-                        dayfirst=True,  # Para formato dd/mm/yyyy
-                        errors='coerce'  # Convierte errores a NaT
+            if not cliente_row.empty:
+                cliente_actual = cliente_row.iloc[0]
+
+                with st.form("editar_cliente_form"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        nuevo_sector = st.text_input("🏙️ Sector", value=cliente_actual.get("Sector", ""))
+                        nuevo_nombre = st.text_input("👤 Nombre", value=cliente_actual.get("Nombre", ""))
+                    with col2:
+                        nueva_direccion = st.text_input("📍 Dirección", value=cliente_actual.get("Dirección", ""))
+                        nuevo_telefono = st.text_input("📞 Teléfono", value=cliente_actual.get("Teléfono", ""))
+
+                    nuevo_precinto = st.text_input("🔒 N° de Precinto", 
+                        value=cliente_actual.get("N° de Precinto", ""),
+                        help="Número de precinto del medidor"
                     )
-                    historial = historial.sort_values("Fecha y hora", ascending=False)
 
-                    # Aplicar formato a la columna de fecha para visualización
-                    historial_display = historial.copy()
-                    historial_display["Fecha y hora"] = historial_display["Fecha y hora"].apply(lambda f: format_fecha(f, '%d/%m/%Y %H:%M'))
-                except Exception as e:
-                    st.error(f"⚠️ Error al procesar fechas del historial: {str(e)}")
-                    historial_display = historial.copy()
+                    actualizar = st.form_submit_button("💾 Actualizar datos del cliente", use_container_width=True)
 
-                st.success(f"🔎 Se encontraron {len(historial)} reclamos para el cliente {historial_cliente}.")
+                if actualizar:
+                    with st.spinner("Actualizando cliente..."):
+                        try:
+                            index = cliente_row.index[0] + 2  # Sumar 2 por encabezado y base 1
 
-                # Mostrar información del cliente
-                cliente_info = df_clientes[df_clientes["Nº Cliente"] == historial_cliente]
-                if not cliente_info.empty:
-                    cliente = cliente_info.iloc[0]
-                    with st.expander("📋 Información del Cliente", expanded=True):
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.markdown(f"**👤 Nombre:** {cliente['Nombre']}")
-                        with col2:
-                            st.markdown(f"**📍 Dirección:** {cliente['Dirección']}")
-                        with col3:
-                            st.markdown(f"**📞 Teléfono:** {cliente['Teléfono']}")
+                            updates = [
+                                {"range": f"B{index}", "values": [[nuevo_sector.upper()]]},
+                                {"range": f"C{index}", "values": [[nuevo_nombre.upper()]]},
+                                {"range": f"D{index}", "values": [[nueva_direccion.upper()]]},
+                                {"range": f"E{index}", "values": [[nuevo_telefono]]},
+                                {"range": f"F{index}", "values": [[nuevo_precinto]]}
+                            ]
 
-                # Mostrar historial en tabla con fechas formateadas
-                st.dataframe(
-                    historial_display[["Fecha y hora", "Tipo de reclamo", "Estado", "Técnico", "N° de Precinto", "Detalles"]],
-                    use_container_width=True,
-                    height=400
-                )
+                            success, error = api_manager.safe_sheet_operation(
+                                batch_update_sheet,
+                                sheet_clientes,
+                                updates,
+                                is_batch=True
+                            )
 
-                # Opción para exportar a CSV (manteniendo los datos originales)
-                csv = historial.to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label="📥 Exportar historial a CSV",
-                    data=csv,
-                    file_name=f"historial_cliente_{historial_cliente}.csv",
-                    mime="text/csv"
-                )
-            else:
-                st.info("❕ Este cliente no tiene reclamos registrados.")
+                            if success:
+                                st.success("✅ Cliente actualizado correctamente.")
+                                st.cache_data.clear()
+                                time.sleep(2)
+                                st.rerun()
+                            else:
+                                st.error(f"❌ Error al actualizar: {error}")
 
-    with tab_edicion:
-        if user_role == 'admin':
-            st.subheader("🛠️ Editar datos de un cliente")
+                        except Exception as e:
+                            st.error(f"❌ Error inesperado: {str(e)}")
 
-            cliente_editar = st.text_input("🔎 Ingresá N° de Cliente a editar", 
-                                        placeholder="Número de cliente",
-                                        key="input_editar_cliente").strip()
+        st.markdown("---")
+        st.subheader("🆕 Cargar nuevo cliente")
 
-            if cliente_editar:
-                df_clientes["Nº Cliente"] = df_clientes["Nº Cliente"].astype(str).str.strip()
-                cliente_row = df_clientes[df_clientes["Nº Cliente"] == cliente_editar]
+        with st.form("form_nuevo_cliente", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                nuevo_nro = st.text_input("🔢 N° de Cliente (nuevo)", placeholder="Número único").strip()
+                nuevo_sector = st.text_input("🏙️ Sector", placeholder="Zona o sector")
+            with col2:
+                nuevo_nombre = st.text_input("👤 Nombre", placeholder="Nombre completo")
+                nueva_direccion = st.text_input("📍 Dirección", placeholder="Dirección completa")
 
-                if not cliente_row.empty:
-                    cliente_actual = cliente_row.iloc[0]
+            nuevo_telefono = st.text_input("📞 Teléfono", placeholder="Número de contacto")
+            nuevo_precinto = st.text_input("🔒 N° de Precinto (opcional)", placeholder="Número de precinto")
 
-                    with st.form("editar_cliente_form"):
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            nuevo_sector = st.text_input("🏙️ Sector", value=cliente_actual.get("Sector", ""))
-                            nuevo_nombre = st.text_input("👤 Nombre", value=cliente_actual.get("Nombre", ""))
-                        with col2:
-                            nueva_direccion = st.text_input("📍 Dirección", value=cliente_actual.get("Dirección", ""))
-                            nuevo_telefono = st.text_input("📞 Teléfono", value=cliente_actual.get("Teléfono", ""))
+            guardar_cliente = st.form_submit_button("💾 Guardar nuevo cliente", use_container_width=True)
 
-                        nuevo_precinto = st.text_input("🔒 N° de Precinto", 
-                                                    value=cliente_actual.get("N° de Precinto", ""),
-                                                    help="Número de precinto del medidor")
-
-                        actualizar = st.form_submit_button("💾 Actualizar datos del cliente", use_container_width=True)
-
-                    if actualizar:
-                        with st.spinner("Actualizando cliente..."):
-                            try:
-                                index = cliente_row.index[0] + 2
-
-                                updates = [
-                                    {"range": f"B{index}", "values": [[nuevo_sector.upper()]]},
-                                    {"range": f"C{index}", "values": [[nuevo_nombre.upper()]]},
-                                    {"range": f"D{index}", "values": [[nueva_direccion.upper()]]},
-                                    {"range": f"E{index}", "values": [[nuevo_telefono]]},
-                                    {"range": f"F{index}", "values": [[nuevo_precinto]]}
-                                ]
-
-                                success, error = api_manager.safe_sheet_operation(
-                                    batch_update_sheet,
-                                    sheet_clientes,
-                                    updates,
-                                    is_batch=True
-                                )
-
-                                if success:
-                                    st.success("✅ Cliente actualizado correctamente.")
-                                    st.cache_data.clear()
-                                    time.sleep(3)
-                                    st.rerun()
-                                else:
-                                    st.error(f"❌ Error al actualizar: {error}")
-
-                            except Exception as e:
-                                st.error(f"❌ Error inesperado: {str(e)}")
+            if guardar_cliente:
+                if not nuevo_nro or not nuevo_nombre:
+                    st.error("⚠️ Debés ingresar al menos el N° de cliente y el nombre.")
+                elif nuevo_nro in df_clientes["Nº Cliente"].values:
+                    st.warning("⚠️ Este cliente ya existe.")
                 else:
-                    st.warning("⚠️ Cliente no encontrado.")
+                    with st.spinner("Guardando nuevo cliente..."):
+                        try:
+                            nueva_fila = [
+                                nuevo_nro, nuevo_sector.upper(), nuevo_nombre.upper(),
+                                nueva_direccion.upper(), nuevo_telefono, nuevo_precinto
+                            ]
 
-            st.markdown("---")
-            st.subheader("🆕 Cargar nuevo cliente")
+                            success, error = api_manager.safe_sheet_operation(
+                                sheet_clientes.append_row,
+                                nueva_fila
+                            )
 
-            with st.form("form_nuevo_cliente", clear_on_submit=True):
-                col1, col2 = st.columns(2)
-                with col1:
-                    nuevo_nro = st.text_input("🔢 N° de Cliente (nuevo)", placeholder="Número único").strip()
-                    nuevo_sector = st.text_input("🏙️ Sector", placeholder="Zona o sector")
-                with col2:
-                    nuevo_nombre = st.text_input("👤 Nombre", placeholder="Nombre completo")
-                    nueva_direccion = st.text_input("📍 Dirección", placeholder="Dirección completa")
+                            if success:
+                                st.success("✅ Nuevo cliente agregado correctamente.")
+                                st.cache_data.clear()
+                                time.sleep(2)
+                                st.rerun()
+                            else:
+                                st.error(f"❌ Error al guardar: {error}")
 
-                nuevo_telefono = st.text_input("📞 Teléfono", placeholder="Número de contacto")
-                nuevo_precinto = st.text_input("🔒 N° de Precinto (opcional)", placeholder="Número de precinto")
-
-                guardar_cliente = st.form_submit_button("💾 Guardar nuevo cliente", use_container_width=True)
-
-                if guardar_cliente:
-                    if not nuevo_nro or not nuevo_nombre:
-                        st.error("⚠️ Debés ingresar al menos el N° de cliente y el nombre.")
-                    elif nuevo_nro in df_clientes["Nº Cliente"].values:
-                        st.warning("⚠️ Este cliente ya existe.")
-                    else:
-                        with st.spinner("Guardando nuevo cliente..."):
-                            try:
-                                nueva_fila = [
-                                    nuevo_nro, nuevo_sector.upper(), nuevo_nombre.upper(),
-                                    nueva_direccion.upper(), nuevo_telefono, nuevo_precinto
-                                ]
-
-                                success, error = api_manager.safe_sheet_operation(
-                                    sheet_clientes.append_row,
-                                    nueva_fila
-                                )
-
-                                if success:
-                                    st.success("✅ Nuevo cliente agregado correctamente.")
-                                    st.cache_data.clear()
-                                    time.sleep(3)
-                                    st.rerun()
-                                else:
-                                    st.error(f"❌ Error al guardar: {error}")
-
-                            except Exception as e:
-                                st.error(f"❌ Error inesperado: {str(e)}")
-        else:
-            st.warning("🔒 Solo los administradores pueden editar información de clientes")
+                        except Exception as e:
+                            st.error(f"❌ Error inesperado: {str(e)}")
+    else:
+        st.warning("🔒 Solo los administradores pueden editar información de clientes")
 
     st.markdown('</div>', unsafe_allow_html=True)
 
