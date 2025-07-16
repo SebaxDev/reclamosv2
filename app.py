@@ -1172,6 +1172,8 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
     st.markdown("---")
     st.markdown("### 🧺 Reclamos asignados por grupo")
 
+    materiales_por_grupo = {}  # acumulador general para usar también en PDF
+
     for grupo in ["Grupo A", "Grupo B", "Grupo C", "Grupo D"][:grupos_activos]:
         reclamos_ids = st.session_state.asignaciones_grupos[grupo]
         tecnicos = st.session_state.tecnicos_grupos[grupo]
@@ -1179,13 +1181,11 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
 
         reclamos_grupo = df_pendientes[df_pendientes["id"].isin(reclamos_ids)]
 
-        # Mostrar resumen de tipos de reclamo y sectores
         resumen_tipos = " - ".join([f"{v} {k}" for k, v in reclamos_grupo["Tipo de reclamo"].value_counts().items()])
         sectores = ", ".join(sorted(set(reclamos_grupo["Sector"].astype(str))))
         st.markdown(f"{resumen_tipos}")
         st.markdown(f"Sectores: {sectores}")
 
-        # Calcular materiales estimados
         materiales_total = {}
         for _, row in reclamos_grupo.iterrows():
             tipo = row["Tipo de reclamo"]
@@ -1197,6 +1197,8 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
                     marca = ROUTER_POR_SECTOR.get(sector, "vsol")
                     key = f"router_{marca}"
                 materiales_total[key] = materiales_total.get(key, 0) + cant
+
+        materiales_por_grupo[grupo] = materiales_total
 
         if materiales_total:
             st.markdown("📦 **Materiales mínimos estimados:**")
@@ -1234,7 +1236,7 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
 
             for grupo in ["Grupo A", "Grupo B", "Grupo C", "Grupo D"][:grupos_activos]:
                 reclamos_ids = st.session_state.asignaciones_grupos[grupo]
-                tecnicos = st.session_state.tecnicos_grupos[grupo]
+                tecnicos = st.session_state.tecnicos_grpos[grupo]
 
                 if not reclamos_ids:
                     continue
@@ -1285,6 +1287,18 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
                             c.setFont("Helvetica-Bold", 16)
                             c.drawString(40, y, f"{grupo} (cont.)")
                             y -= 25
+
+                # Mostrar materiales mínimos estimados por grupo al final del bloque
+                materiales = materiales_por_grupo.get(grupo, {})
+                if materiales:
+                    y -= 10
+                    c.setFont("Helvetica-Bold", 12)
+                    c.drawString(40, y, "Materiales mínimos estimados:")
+                    y -= 15
+                    c.setFont("Helvetica", 11)
+                    for mat, cant in materiales.items():
+                        c.drawString(40, y, f"- {cant} {mat.replace('_', ' ').title()}")
+                        y -= 12
 
                 y -= 20
 
