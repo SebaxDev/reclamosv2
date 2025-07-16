@@ -69,11 +69,64 @@ TECNICOS_DISPONIBLES = [
 
 TIPOS_RECLAMO = [
     "Conexion C+I", "Conexion Cable", "Conexion Internet", "Suma Internet",
-    "Suma Cable", "Reconexion", "Sin Señal Ambos", "Sin Señal Cable",
+    "Suma Cable", "Reconexion", "Reconexion C+I", "Reconexion Internet", "Reconexion Cable", "Sin Señal Ambos", "Sin Señal Cable",
     "Sin Señal Internet", "Sintonia", "Interferencia", "Traslado",
-    "Extension", "Extension x3", "Extension x4", "Cambio de Ficha",
+    "Extension", "Extension x2", "Extension x3", "Extension x4", "Cambio de Ficha",
     "Cambio de Equipo", "Reclamo", "Cambio de Plan", "Desconexion a Pedido"
 ]
+
+# --------------------------
+# MATERIALES Y EQUIPOS POR RECLAMO Y SECTOR
+# --------------------------
+
+# Marca de router recomendada por sector (predeterminado)
+ROUTER_POR_SECTOR = {
+    "1": "huawei",
+    "2": "huawei",
+    "3": "huawei",
+    "4": "huawei",
+    "5": "huawei",
+    "6": "vsol",
+    "7": "vsol",
+    "8": "vsol",
+    "9": "huawei",
+    "10": "huawei",
+    "11": "vsol",
+    "12": "huawei",
+    "13": "huawei",
+    "14": "vsol",
+    "15": "huawei",
+    "16": "huawei",
+    "17": "huawei"
+}
+
+# Materiales mínimos requeridos por tipo de reclamo
+MATERIALES_POR_RECLAMO = {
+    "Conexion C+I": {"router_catv": 1, "conector": 2, "ficha_f": 2},
+    "Conexion Cable": {"ficha_f": 2, "micro": 1},
+    "Conexion Internet": {"router_internet": 1, "conector": 2},
+    "Suma Internet": {"router_catv": 1, "conector": 2, "ficha_f": 2},
+    "Suma Cable": {"router_catv": 1, "ficha_f": 2},
+    "Reconexion": {},
+    "Reconexion C+I": {"router_catv": 1, "conector": 2},
+    "Reconexion Internet": {"router_internet": 1, "conector": 2},
+    "Reconexion Cable": {"ficha_f": 2, "micro": 1},
+    "Sin Señal Ambos": {"conector": 2},
+    "Sin Señal Cable": {"ficha_f": 2, "micro": 1},
+    "Sin Señal Internet": {"conector": 2},
+    "Sintonia": {},
+    "Interferencia": {"ficha_f": 2},
+    "Traslado": {"conector": 2, "ficha_f": 2},
+    "Extension": {},
+    "Extension x2": {"derivador_x2": 1, "ficha_f": 4},
+    "Extension x3": {"derivador_x3": 1, "ficha_f": 4},
+    "Extension x4": {"derivador_x4": 1, "ficha_f": 8},
+    "Cambio de Ficha": {"conector": 1, "ficha_f": 1, "micro": 1},
+    "Cambio de Equipo": {"router": 1},
+    "Reclamo": {},
+    "Cambio de Plan": {},
+    "Desconexion a Pedido": {}
+}
 
 # --------------------------
 # SEGURIDAD Y API
