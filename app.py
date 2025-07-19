@@ -1297,7 +1297,7 @@ elif opcion == "Seguimiento técnico" and user_role == 'admin':
                         lineas = [
                             f"Fecha: {fecha_pdf}",
                             f"Dirección: {reclamo['Dirección']} - Tel: {reclamo['Teléfono']}",
-                            f"Sector: {reclamo['Sector']} - Precinto: {reclamo.get('Nº de Precinto', 'N/A')}",
+                            f"Sector: {reclamo['Sector']} - Precinto: {reclamo.get('N° de Precinto', 'N/A')}",
                             f"Tipo: {reclamo['Tipo de reclamo']}",
                             f"Detalles: {reclamo['Detalles'][:100]}..." if len(reclamo['Detalles']) > 100 else f"Detalles: {reclamo['Detalles']}",
                         ]
