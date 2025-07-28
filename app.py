@@ -13,10 +13,6 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 import io
 
-# IMPORTS PARA LA MASCOTA ANIMADA
-import requests
-from streamlit_lottie import st_lottie
-
 # Imports de componentes
 from components.auth import has_permission, check_authentication, render_login, render_user_info
 from components.navigation import render_navigation, render_user_info
@@ -258,6 +254,10 @@ opcion = render_navigation()
 # --------------------------
 # SECCIÓN 1: INICIO - NUEVO RECLAMO
 # --------------------------
+
+# IMPORTS PARA LA MASCOTA ANIMADA
+import requests
+from streamlit_lottie import st_lottie
 
 if opcion == "Inicio" and has_permission('inicio'):
     # MASCOTA ANIMADA ASOMÁNDOSE EN LA SECCIÓN DE INICIO
