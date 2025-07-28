@@ -13,6 +13,10 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 import io
 
+# IMPORTS PARA LA MASCOTA ANIMADA
+import requests
+from streamlit_lottie import st_lottie
+
 # Imports de componentes
 from components.auth import has_permission, check_authentication, render_login, render_user_info
 from components.navigation import render_navigation, render_user_info
@@ -256,6 +260,33 @@ opcion = render_navigation()
 # --------------------------
 
 if opcion == "Inicio" and has_permission('inicio'):
+    # MASCOTA ANIMADA ASOMÁNDOSE EN LA SECCIÓN DE INICIO
+    def load_lottie_url(url):
+        r = requests.get(url)
+        if r.status_code != 200:
+            return None
+        return r.json()
+
+    lottie_bot_url = "https://assets4.lottiefiles.com/packages/lf20_j1adxtyb.json"
+    lottie_bot = load_lottie_url(lottie_bot_url)
+
+    st.markdown("""
+        <style>
+        .lottie-bot-container {
+            position: fixed;
+            top: 30%;
+            right: -100px;
+            z-index: 9999;
+            width: 300px;
+            pointer-events: none;
+            transform: scaleX(-1);
+        }
+        </style>
+        <div class=\"lottie-bot-container\" id=\"bot-lottie\"></div>
+    """, unsafe_allow_html=True)
+
+    st_lottie(lottie_bot, height=300, key="bot-inicio", speed=1, loop=True)
+
     st.markdown('<div class="section-container">', unsafe_allow_html=True)
     st.subheader("📝 Cargar nuevo reclamo")
 
@@ -266,22 +297,17 @@ if opcion == "Inicio" and has_permission('inicio'):
     cliente_nuevo = False
 
     if "Nº Cliente" in df_clientes.columns and nro_cliente:
-        # Normalización de datos
         df_clientes["Nº Cliente"] = df_clientes["Nº Cliente"].astype(str).str.strip()
         df_reclamos["Nº Cliente"] = df_reclamos["Nº Cliente"].astype(str).str.strip()
 
         match = df_clientes[df_clientes["Nº Cliente"] == nro_cliente]
-
-        # Procesamiento robusto de fechas usando la función centralizada
         df_reclamos["Fecha y hora"] = df_reclamos["Fecha y hora"].apply(parse_fecha)
 
         reclamos_activos = df_reclamos[
             (df_reclamos["Nº Cliente"] == nro_cliente) &
             (
                 df_reclamos["Estado"].isin(["Pendiente", "En curso"]) |
-                (
-                    df_reclamos["Tipo de reclamo"].str.strip().str.lower() == "desconexion a pedido"
-                )
+                (df_reclamos["Tipo de reclamo"].str.strip().str.lower() == "desconexion a pedido")
             )
         ]
 
@@ -298,7 +324,6 @@ if opcion == "Inicio" and has_permission('inicio'):
             reclamo_vigente = reclamos_activos.sort_values("Fecha y hora", ascending=False).iloc[0]
 
             with st.expander("🔍 Ver detalles del reclamo activo"):
-                # Usar la función format_fecha para mostrar consistencia
                 fecha_formateada = format_fecha(reclamo_vigente['Fecha y hora'], '%d/%m/%Y %H:%M')
                 st.markdown(f"**📅 Fecha del reclamo:** {fecha_formateada}")
                 st.markdown(f"**👤 Cliente:** {reclamo_vigente['Nombre']}")
@@ -348,14 +373,13 @@ if opcion == "Inicio" and has_permission('inicio'):
             else:
                 with st.spinner("Guardando reclamo..."):
                     try:
-                        # Usar la función centralizada para obtener fecha/hora actual
                         fecha_hora_obj = ahora_argentina()
-                        fecha_hora_str = format_fecha(fecha_hora_obj)  # Formato consistente dd/mm/yyyy HH:MM
-                        
+                        fecha_hora_str = format_fecha(fecha_hora_obj)
+
                         estado_reclamo = "" if tipo_reclamo.strip().lower() == "desconexion a pedido" else "Pendiente"
 
                         fila_reclamo = [
-                            fecha_hora_str,  # String formateado usando la función centralizada
+                            fecha_hora_str,
                             nro_cliente, 
                             sector, 
                             nombre.upper(),
@@ -364,7 +388,7 @@ if opcion == "Inicio" and has_permission('inicio'):
                             tipo_reclamo,
                             detalles.upper(), 
                             estado_reclamo, 
-                            "",  # Técnico (vacío inicialmente)
+                            "",
                             precinto, 
                             atendido_por.upper()
                         ]
@@ -391,9 +415,8 @@ if opcion == "Inicio" and has_permission('inicio'):
                                     cliente_nuevo = True
                                     st.info("ℹ️ Se ha creado un nuevo registro de cliente.")
 
-                            # Limpiar caché y recargar datos
                             st.cache_data.clear()
-                            time.sleep(3)  # Reducido de 4 a 3 segundos
+                            time.sleep(3)
                             st.rerun()
                         else:
                             st.error(f"❌ Error al guardar: {error}")
