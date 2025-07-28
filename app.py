@@ -252,113 +252,61 @@ st.divider()
 opcion = render_navigation()
 
 # --------------------------
-# SECCIÓN 1 MEJORADA CON MANEJO DE CAMPOS OPCIONALES
+# SECCIÓN 1: INICIO - NUEVO RECLAMO
 # --------------------------
-
-def normalizar_texto(texto):
-    """Normaliza texto para comparación eliminando espacios, acentos, etc."""
-    if not isinstance(texto, str) or not texto.strip():
-        return ""
-    texto = texto.upper().strip()
-    reemplazos = [
-        ("Á", "A"), ("É", "E"), ("Í", "I"), ("Ó", "O"), ("Ú", "U"),
-        ("  ", " "), (".", ""), (",", ""), ("-", "")
-    ]
-    for viejo, nuevo in reemplazos:
-        texto = texto.replace(viejo, nuevo)
-    return texto
-
-def buscar_clientes_similares(df, nombre, direccion, telefono="", nro_cliente=None):
-    """Busca clientes con datos similares (teléfono ahora opcional)"""
-    nombre_norm = normalizar_texto(nombre)
-    direccion_norm = normalizar_texto(direccion)
-    telefono_norm = normalizar_texto(telefono) if telefono else ""
-    
-    # Verificación por número de cliente si se proporciona
-    if nro_cliente:
-        match_nro = df[df["Nº Cliente"].astype(str).str.strip() == str(nro_cliente).strip()]
-        if not match_nro.empty:
-            return match_nro, "exact_match"
-    
-    # Combinación nombre + dirección (sin depender del teléfono)
-    mask_nombre_dir = (
-        (df["Nombre"].apply(normalizar_texto) == nombre_norm) &
-        (df["Dirección"].apply(normalizar_texto) == direccion_norm)
-    )
-    if mask_nombre_dir.any():
-        return df[mask_nombre_dir], "nombre_direccion"
-    
-    # Verificación por teléfono solo si se proporcionó y tiene suficiente longitud
-    if telefono_norm and len(telefono_norm) >= 6:
-        mask_telefono = (
-            df["Teléfono"].apply(lambda x: normalizar_texto(x) if pd.notna(x) else "").str.contains(telefono_norm)
-        )
-        if mask_telefono.any():
-            return df[mask_telefono], "telefono"
-    
-    # Verificación solo por nombre similar
-    mask_nombre = (
-        df["Nombre"].apply(normalizar_texto).str.contains(nombre_norm) |
-        nombre_norm.str.contains(df["Nombre"].apply(normalizar_texto))
-    )
-    if mask_nombre.any():
-        return df[mask_nombre], "nombre_similar"
-    
-    return pd.DataFrame(), "no_match"
 
 if opcion == "Inicio" and has_permission('inicio'):
     st.markdown('<div class="section-container">', unsafe_allow_html=True)
     st.subheader("📝 Cargar nuevo reclamo")
 
-    nro_cliente = st.text_input("🔢 N° de Cliente", placeholder="Ingresa el número de cliente", key="nro_cliente_input").strip()
+    nro_cliente = st.text_input("🔢 N° de Cliente", placeholder="Ingresa el número de cliente").strip()
     cliente_existente = None
     formulario_bloqueado = False
     reclamo_guardado = False
     cliente_nuevo = False
-    mostrar_alerta_similitud = False
-    posibles_duplicados = pd.DataFrame()
 
     if "Nº Cliente" in df_clientes.columns and nro_cliente:
         # Normalización de datos
         df_clientes["Nº Cliente"] = df_clientes["Nº Cliente"].astype(str).str.strip()
         df_reclamos["Nº Cliente"] = df_reclamos["Nº Cliente"].astype(str).str.strip()
 
-        # Procesamiento de fechas
+        match = df_clientes[df_clientes["Nº Cliente"] == nro_cliente]
+
+        # Procesamiento robusto de fechas usando la función centralizada
         df_reclamos["Fecha y hora"] = df_reclamos["Fecha y hora"].apply(parse_fecha)
 
-        # Verificar reclamos activos
         reclamos_activos = df_reclamos[
             (df_reclamos["Nº Cliente"] == nro_cliente) &
-            (df_reclamos["Estado"].isin(["Pendiente", "En curso"]) |
-             (df_reclamos["Tipo de reclamo"].str.strip().str.lower() == "desconexion a pedido"))
+            (
+                df_reclamos["Estado"].isin(["Pendiente", "En curso"]) |
+                (
+                    df_reclamos["Tipo de reclamo"].str.strip().str.lower() == "desconexion a pedido"
+                )
+            )
         ]
 
-        # Buscar cliente exacto por número
-        match_exacto = df_clientes[df_clientes["Nº Cliente"] == nro_cliente]
-        
-        if not match_exacto.empty:
-            cliente_existente = match_exacto.iloc[0].to_dict()
+        if not match.empty:
+            cliente_existente = match.iloc[0].to_dict()
             st.success("✅ Cliente reconocido, datos auto-cargados.")
         else:
             st.info("ℹ️ Cliente no encontrado. Se cargará como Cliente Nuevo.")
-            
-            # Verificación de duplicados solo si hay datos ingresados
-            if "nombre_input" in st.session_state and "direccion_input" in st.session_state:
-                nombre_temp = st.session_state.nombre_input
-                direccion_temp = st.session_state.direccion_input
-                telefono_temp = st.session_state.get("telefono_input", "")
-                
-                if nombre_temp and direccion_temp:
-                    posibles_duplicados, _ = buscar_clientes_similares(
-                        df_clientes, nombre_temp, direccion_temp, telefono_temp, nro_cliente
-                    )
-                    if not posibles_duplicados.empty:
-                        mostrar_alerta_similitud = True
 
         if not reclamos_activos.empty:
-            formulario_bloqueado = True
             st.error("⚠️ Este cliente ya tiene un reclamo sin resolver o una desconexión activa. No se puede cargar uno nuevo.")
-            # [Mostrar detalles del reclamo activo...]
+            formulario_bloqueado = True
+
+            reclamo_vigente = reclamos_activos.sort_values("Fecha y hora", ascending=False).iloc[0]
+
+            with st.expander("🔍 Ver detalles del reclamo activo"):
+                # Usar la función format_fecha para mostrar consistencia
+                fecha_formateada = format_fecha(reclamo_vigente['Fecha y hora'], '%d/%m/%Y %H:%M')
+                st.markdown(f"**📅 Fecha del reclamo:** {fecha_formateada}")
+                st.markdown(f"**👤 Cliente:** {reclamo_vigente['Nombre']}")
+                st.markdown(f"**📌 Tipo de reclamo:** {reclamo_vigente['Tipo de reclamo']}")
+                st.markdown(f"**📝 Detalles:** {reclamo_vigente['Detalles'][:250]}{'...' if len(reclamo_vigente['Detalles']) > 250 else ''}")
+                st.markdown(f"**⚙️ Estado:** {reclamo_vigente['Estado'] or 'Sin estado'}")
+                st.markdown(f"**👷 Técnico asignado:** {reclamo_vigente.get('Técnico', 'No asignado') or 'No asignado'}")
+                st.markdown(f"**🙍‍♂️ Atendido por:** {reclamo_vigente.get('Atendido por', 'N/A')}")
 
     if not formulario_bloqueado:
         with st.form("reclamo_formulario", clear_on_submit=True):
@@ -366,135 +314,58 @@ if opcion == "Inicio" and has_permission('inicio'):
 
             if cliente_existente:
                 with col1:
-                    nombre = st.text_input("👤 Nombre del Cliente", 
-                                         value=cliente_existente.get("Nombre", ""),
-                                         key="nombre_input")
-                    direccion = st.text_input("📍 Dirección", 
-                                            value=cliente_existente.get("Dirección", ""),
-                                            key="direccion_input")
+                    nombre = st.text_input("👤 Nombre del Cliente", value=cliente_existente.get("Nombre", ""))
+                    direccion = st.text_input("📍 Dirección", value=cliente_existente.get("Dirección", ""))
                 with col2:
-                    telefono = st.text_input("📞 Teléfono (opcional)", 
-                                           value=cliente_existente.get("Teléfono", ""),
-                                           key="telefono_input")
-                    sector = st.text_input("🏩 Sector / Zona", 
-                                         value=cliente_existente.get("Sector", ""),
-                                         key="sector_input")
+                    telefono = st.text_input("📞 Teléfono", value=cliente_existente.get("Teléfono", ""))
+                    sector = st.text_input("🏩 Sector / Zona", value=cliente_existente.get("Sector", ""))
             else:
                 with col1:
-                    nombre = st.text_input("👤 Nombre del Cliente", 
-                                         placeholder="Nombre completo",
-                                         key="nombre_input")
-                    direccion = st.text_input("📍 Dirección", 
-                                            placeholder="Dirección completa",
-                                            key="direccion_input")
+                    nombre = st.text_input("👤 Nombre del Cliente", placeholder="Nombre completo")
+                    direccion = st.text_input("📍 Dirección", placeholder="Dirección completa")
                 with col2:
-                    telefono = st.text_input("📞 Teléfono (opcional)", 
-                                           placeholder="Número de contacto (opcional)",
-                                           key="telefono_input")
-                    sector = st.text_input("🏩 Sector / Zona", 
-                                         placeholder="Coloque número de sector",
-                                         key="sector_input")
+                    telefono = st.text_input("📞 Teléfono", placeholder="Número de contacto")
+                    sector = st.text_input("🏩 Sector / Zona", placeholder="Coloque número de sector")
 
-            tipo_reclamo = st.selectbox("📌 Tipo de Reclamo", TIPOS_RECLAMO, key="tipo_reclamo_select")
-            detalles = st.text_area("📝 Detalles del Reclamo", 
-                                  placeholder="Describe el problema o solicitud...", 
-                                  height=100,
-                                  key="detalles_textarea")
+            tipo_reclamo = st.selectbox("📌 Tipo de Reclamo", TIPOS_RECLAMO)
+            detalles = st.text_area("📝 Detalles del Reclamo", placeholder="Describe el problema o solicitud...", height=100)
 
             col3, col4 = st.columns(2)
             with col3:
                 precinto = st.text_input("🔒 N° de Precinto (opcional)",
                                        value=cliente_existente.get("N° de Precinto", "").strip() if cliente_existente else "",
-                                       placeholder="Número de precinto (opcional)",
-                                       key="precinto_input")
+                                       placeholder="Número de precinto")
             with col4:
-                atendido_por = st.text_input("👤 Atendido por", 
-                                          placeholder="Nombre de quien atiende", 
-                                          value=st.session_state.get("current_user", ""),
-                                          key="atendido_por_input")
+                atendido_por = st.text_input("👤 Atendido por", placeholder="Nombre de quien atiende", value=st.session_state.get("current_user", ""))
 
             enviado = st.form_submit_button("✅ Guardar Reclamo", use_container_width=True)
 
-        # Mostrar alerta de posibles duplicados (sin depender del teléfono)
-        if mostrar_alerta_similitud and not posibles_duplicados.empty:
-            with st.expander("⚠️ ATENCIÓN: Posibles clientes duplicados encontrados", expanded=True):
-                st.warning("Se encontraron clientes con información similar (por nombre y dirección). Verifica antes de continuar:")
-                
-                # Mostrar tabla sin el teléfono si está vacío
-                columnas_mostrar = ["Nº Cliente", "Nombre", "Dirección", "Sector"]
-                if not posibles_duplicados["Teléfono"].isnull().all():
-                    columnas_mostrar.append("Teléfono")
-                
-                st.dataframe(
-                    posibles_duplicados[columnas_mostrar].rename(
-                        columns={"Nº Cliente": "N° Cliente"}
-                    ),
-                    hide_index=True,
-                    use_container_width=True
-                )
-                
-                st.markdown("**¿Qué deseas hacer?**")
-                col1, col2 = st.columns(2)
-                if col1.button("Usar cliente existente", key="usar_existente"):
-                    st.session_state.nro_cliente_input = posibles_duplicados.iloc[0]["Nº Cliente"]
-                    st.rerun()
-                
-                if col2.button("Continuar con nuevo cliente", key="continuar_nuevo"):
-                    st.session_state.continuar_con_nuevo = True
-                    st.rerun()
-
         if enviado:
-            # Validaciones antes de guardar (teléfono y precinto son opcionales)
-            errores = []
-            
             if not nro_cliente:
-                errores.append("Debes ingresar un número de cliente")
-            
-            campos_requeridos = {
-                "Nombre": nombre.strip(),
-                "Dirección": direccion.strip(),
-                "Sector": sector.strip(),
-                "Tipo de reclamo": tipo_reclamo.strip(),
-                "Atendido por": atendido_por.strip()
-            }
-            
-            for campo, valor in campos_requeridos.items():
-                if not valor:
-                    errores.append(f"El campo {campo} es obligatorio")
-            
-            # Validación adicional para nuevos clientes (ignorando teléfono vacío)
-            if not cliente_existente:
-                posibles_duplicados, _ = buscar_clientes_similares(
-                    df_clientes, nombre, direccion, telefono if telefono else "", nro_cliente
-                )
-                
-                if not posibles_duplicados.empty and not getattr(st.session_state, "continuar_con_nuevo", False):
-                    st.error("⚠️ Se detectaron posibles clientes duplicados. Verifica la sección superior antes de continuar.")
-                    st.stop()
-            
-            if errores:
-                for error in errores:
-                    st.error(f"⚠️ {error}")
+                st.error("⚠️ Debes ingresar un número de cliente.")
+            elif not all([nombre.strip(), direccion.strip(), sector.strip(), tipo_reclamo.strip(), atendido_por.strip()]):
+                st.error("⚠️ Todos los campos obligatorios deben estar completos.")
             else:
                 with st.spinner("Guardando reclamo..."):
                     try:
-                        fecha_hora_str = format_fecha(ahora_argentina())
+                        # Usar la función centralizada para obtener fecha/hora actual
+                        fecha_hora_obj = ahora_argentina()
+                        fecha_hora_str = format_fecha(fecha_hora_obj)  # Formato consistente dd/mm/yyyy HH:MM
                         
                         estado_reclamo = "" if tipo_reclamo.strip().lower() == "desconexion a pedido" else "Pendiente"
 
-                        # Preparar fila con campos opcionales
                         fila_reclamo = [
-                            fecha_hora_str,
+                            fecha_hora_str,  # String formateado usando la función centralizada
                             nro_cliente, 
                             sector, 
                             nombre.upper(),
                             direccion.upper(), 
-                            telefono if telefono else "",  # Campo opcional
+                            telefono, 
                             tipo_reclamo,
                             detalles.upper(), 
                             estado_reclamo, 
-                            "",  # Técnico
-                            precinto if precinto else "",  # Campo opcional
+                            "",  # Técnico (vacío inicialmente)
+                            precinto, 
                             atendido_por.upper()
                         ]
 
@@ -510,16 +381,8 @@ if opcion == "Inicio" and has_permission('inicio'):
                             if tipo_reclamo.strip().lower() == "desconexion a pedido":
                                 st.warning("📄 Este reclamo es una Desconexión a Pedido. **Y NO CUENTA como reclamo activo.**")
 
-                            # Guardar nuevo cliente si no existe (con campos opcionales)
                             if nro_cliente not in df_clientes["Nº Cliente"].values:
-                                fila_cliente = [
-                                    nro_cliente, 
-                                    sector, 
-                                    nombre.upper(), 
-                                    direccion.upper(), 
-                                    telefono if telefono else "",  # Campo opcional
-                                    precinto if precinto else ""   # Campo opcional
-                                ]
+                                fila_cliente = [nro_cliente, sector, nombre.upper(), direccion.upper(), telefono, precinto]
                                 success_cliente, _ = api_manager.safe_sheet_operation(
                                     sheet_clientes.append_row,
                                     fila_cliente
@@ -527,13 +390,19 @@ if opcion == "Inicio" and has_permission('inicio'):
                                 if success_cliente:
                                     cliente_nuevo = True
                                     st.info("ℹ️ Se ha creado un nuevo registro de cliente.")
-                            
-                            # Limpiar estado y recargar
+
+                            # Limpiar caché y recargar datos
                             st.cache_data.clear()
-                            time.sleep(3)
+                            time.sleep(3)  # Reducido de 4 a 3 segundos
                             st.rerun()
+                        else:
+                            st.error(f"❌ Error al guardar: {error}")
+                            if DEBUG_MODE:
+                                st.write("Detalles del error:", error)
                     except Exception as e:
                         st.error(f"❌ Error inesperado: {str(e)}")
+                        if DEBUG_MODE:
+                            st.exception(e)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
