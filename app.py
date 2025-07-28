@@ -415,37 +415,29 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
     st.subheader("📊 Gestión de reclamos cargados")
 
     try:
-        # Copia del dataframe original
         df = df_reclamos.copy()
 
-        # Normalización de columnas clave
         df_clientes["Nº Cliente"] = df_clientes["Nº Cliente"].astype(str).str.strip()
         df["Nº Cliente"] = df["Nº Cliente"].astype(str).str.strip()
 
-        # Merge con datos del cliente
         df = pd.merge(df, df_clientes[["Nº Cliente", "N° de Precinto", "Teléfono"]], 
                       on="Nº Cliente", how="left", suffixes=("", "_cliente"))
 
-        # Procesamiento robusto de fechas usando la función centralizada
         df["Fecha y hora"] = df["Fecha y hora"].apply(parse_fecha)
-        
-        # Verificar si hay fechas inválidas
+        df["Fecha_formateada"] = df["Fecha y hora"].apply(lambda x: format_fecha(x, '%d/%m/%Y %H:%M'))
+
         if df["Fecha y hora"].isna().any():
             num_fechas_invalidas = df["Fecha y hora"].isna().sum()
             st.warning(f"⚠️ Advertencia: {num_fechas_invalidas} reclamos tienen fechas inválidas o faltantes")
             if DEBUG_MODE:
                 invalid_data = df[df["Fecha y hora"].isna()].copy()
-                st.write("Reclamos con fechas inválidas:", 
-                         invalid_data[['Nº Cliente', 'Nombre', 'Tipo de reclamo']])
+                st.write("Reclamos con fechas inválidas:", invalid_data[['Nº Cliente', 'Nombre', 'Tipo de reclamo']])
 
         df = df.sort_values("Fecha y hora", ascending=False)
 
-        # === (RECLAMOS POR TIPO) ===
         df_activos = df[df["Estado"].isin(["Pendiente", "En curso"])]
-
         if not df_activos.empty:
             conteo_por_tipo = df_activos["Tipo de reclamo"].value_counts().sort_index()
-
             st.markdown("#### 📊 Distribución de reclamos activos por tipo")
             st.markdown('<div style="margin-top: -10px; margin-bottom: 10px;">', unsafe_allow_html=True)
 
@@ -466,13 +458,10 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
                                     <h5 style='margin: 0; font-size: 0.70rem; color: #6c757d;'>{tipo}</h5>
                                     <h4 style='margin: 2px 0 0 0; color: {color_cantidad}; font-size: {font_size};'>{cant}</h4>
                                 </div>""", unsafe_allow_html=True)
-
             st.markdown("</div>", unsafe_allow_html=True)
 
-        # === FILTROS ===
         st.markdown("#### 🔍 Filtros de búsqueda")
         col1, col2, col3 = st.columns(3)
-
         with col1:
             filtro_estado = st.selectbox("Estado", ["Todos"] + sorted(df["Estado"].dropna().unique()))
         with col2:
@@ -490,18 +479,12 @@ elif opcion == "Reclamos cargados" and has_permission('reclamos_cargados'):
 
         st.markdown(f"**Mostrando {len(df_filtrado)} reclamos**")
 
-        # Mostrar dataframe con fechas formateadas usando la función centralizada
         columnas_visibles = ["Fecha_formateada", "Nº Cliente", "Nombre", "Sector", "Tipo de reclamo", "Teléfono", "Estado"]
         df_mostrar = df_filtrado[columnas_visibles].copy()
         df_mostrar = df_mostrar.rename(columns={"Fecha_formateada": "Fecha y hora"})
-        
-        st.dataframe(df_mostrar, use_container_width=True, hide_index=True,
-                    column_config={
-                        "Fecha y hora": st.column_config.DatetimeColumn(
-                            "Fecha y hora",
-                            format="DD/MM/YYYY HH:mm"
-                        )
-                    })
+
+        # Mostrar la tabla como texto (no como DatetimeColumn)
+        st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
 
         # === FORMULARIO DE EDICIÓN MANUAL ===
         st.markdown("---")
