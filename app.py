@@ -60,7 +60,7 @@ from components.ui_kit import crm_card, crm_metric, crm_badge, crm_loading, crm_
 from utils.helpers import show_warning, show_error, show_success, show_info, format_phone_number, format_dni, get_current_datetime, format_datetime, truncate_text, is_valid_email, safe_float_conversion, safe_int_conversion, get_status_badge, format_currency, get_breadcrumb_icon
 
 # Utils
-from utils.styles import get_main_styles_v3 as get_main_styles
+from utils.styles import get_main_styles_v3
 from utils.data_manager import safe_get_sheet_data, safe_normalize, update_sheet_data, batch_update_sheet
 from utils.api_manager import api_manager, init_api_session_state
 from utils.pdf_utils import agregar_pie_pdf
@@ -379,7 +379,7 @@ def precache_all_data(sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_noti
             st.warning(f"Advertencia al cargar logs: {str(e)}")
 
 loading_placeholder = st.empty()
-loading_placeholder.markdown(get_loading_spinner(), unsafe_allow_html=True)
+loading_placeholder.markdown(loading_indicator(), unsafe_allow_html=True)
 try:
     # ✅ ACTUALIZAR: Recibir la hoja de logs
     sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications, sheet_logs = init_google_sheets()
