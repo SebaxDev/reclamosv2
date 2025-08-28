@@ -10,24 +10,52 @@ SHEET_ID = "13R_3Mdr25Jd-nGhK7CxdcbKkFWLc0LPdYrOLOY8sZJo"
 WORKSHEET_RECLAMOS = "Reclamos"
 WORKSHEET_CLIENTES = "Clientes"
 WORKSHEET_USUARIOS = "usuarios"
+WORKSHEET_NOTIFICACIONES = "Notificaciones"
+
+MAX_NOTIFICATIONS = 10  # Máximo de notificaciones a mostrar en UI
+
+# Tipos de notificación
+NOTIFICATION_TYPES = {
+    "unassigned_claim": {"priority": "alta", "icon": "⏱️"},
+    "status_change": {"priority": "media", "icon": "🔄"},
+    "duplicate_claim": {"priority": "alta", "icon": "⚠️"},
+    "new_assignment": {"priority": "media", "icon": "📌"},
+    "client_update": {"priority": "baja", "icon": "✏️"},
+    "daily_reminder": {"priority": "baja", "icon": "📅"},
+    "nuevo_reclamo": {"priority": "media", "icon": "🆕"},
+    "reclamo_asignado": {"priority": "media", "icon": "👷"},
+    "trabajo_asignado": {"priority": "media", "icon": "🛠️"}
+}
+
+# Columnas para la hoja de notificaciones
+COLUMNAS_NOTIFICACIONES = [
+    "ID", "Tipo", "Prioridad", "Mensaje", 
+    "Usuario_Destino", "ID_Reclamo", "Fecha_Hora", "Leída", "Acción"
+]
 
 # --------------------------
 # ESTRUCTURAS DE DATOS
 # --------------------------
 COLUMNAS_RECLAMOS = [
     "Fecha y hora", "Nº Cliente", "Sector", "Nombre", 
-    "Dirección", "Teléfono", "Tipo de reclamo", 
-    "Detalles", "Estado", "Técnico", "N° de Precinto", "Atendido por"
+    "Dirección", "Teléfono", "Tipo de reclamo", "Detalles", 
+    "Estado", "Técnico", "N° de Precinto", "Atendido por", "Fecha_formateada", "ID Reclamo"
 ]
 
 COLUMNAS_CLIENTES = [
     "Nº Cliente", "Sector", "Nombre", "Dirección", 
-    "Teléfono", "N° de Precinto"
+    "Teléfono", "N° de Precinto", "ID Cliente", "Última Modificación"
 ]
 
 COLUMNAS_USUARIOS = [  # Nueva estructura para usuarios
-    "username", "password", "nombre", "rol", "activo"
+    "username", "password", "nombre", "rol", "activo", "modo_oscuro"
 ]
+
+# --------------------------
+# IDENTIFICADORES ÚNICOS
+# --------------------------
+COLUMNA_ID_RECLAMO = "ID Reclamo"  # Columna P en WORKSHEET_RECLAMOS
+COLUMNA_ID_CLIENTE = "ID Cliente"   # Columna G en WORKSHEET_CLIENTES
 
 # --------------------------
 # ROLES Y PERMISOS
@@ -56,12 +84,15 @@ OPCIONES_PERMISOS = {
     "Gestión de clientes": "gestion_clientes",
     "Imprimir reclamos": "imprimir_reclamos",
     "Seguimiento técnico": "seguimiento_tecnico",
-    "Cierre de Reclamos": "cierre_reclamos"
+    "Cierre de Reclamos": "cierre_reclamos",
+    "Administración": "admin"
 }
 
 # --------------------------
 # CONFIGURACIÓN DE LA APLICACIÓN
 # --------------------------
+SECTORES_DISPONIBLES = [str(n) for n in range(1, 18)]
+
 TECNICOS_DISPONIBLES = [
     "Braian", "Conejo", "Juan", "Junior", "Maxi", 
     "Ramon", "Roque", "Viki", "Oficina", "Base"
