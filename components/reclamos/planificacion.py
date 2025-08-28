@@ -16,7 +16,7 @@ from config.settings import (
     ROUTER_POR_SECTOR
 )
 from components.ui_kit import crm_card, crm_metric, crm_badge, crm_loading, crm_alert
-from components.ui import breadcrumb, metric_card, card, badge, loading_indicator
+from components.ui import breadcrumb, metric_card, card, badge, loading_spinner as loading_indicator
 
 GRUPOS_POSIBLES = [f"Grupo {letra}" for letra in "ABCDE"]
 
