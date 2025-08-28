@@ -11,7 +11,7 @@ from utils.pdf_utils import agregar_pie_pdf
 from utils.date_utils import ahora_argentina
 from utils.reporte_diario import *
 from components.ui_kit import crm_card, crm_metric, crm_badge, crm_loading, crm_alert
-from components.ui import breadcrumb, metric_card, card, badge, loading_indicator
+from components.ui import breadcrumb, metric_card, card, badge, loading_spinner as loading_indicator
 
 
 def render_impresion_reclamos(df_reclamos, df_clientes, user):
