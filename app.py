@@ -110,6 +110,11 @@ st.set_page_config(
 
 # Aplicar los estilos mejorados
 st.markdown(load_tailwind(), unsafe_allow_html=True)
+
+# ✅ INICIALIZAR MODO OSCURO ANTES DE USARLO
+if 'modo_oscuro' not in st.session_state:
+    st.session_state.modo_oscuro = False
+
 st.markdown(get_main_styles_v3(dark_mode=st.session_state.modo_oscuro), unsafe_allow_html=True)
 
 # Añadir clases de Tailwind al body
