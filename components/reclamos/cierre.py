@@ -7,8 +7,7 @@ from utils.date_utils import parse_fecha, format_fecha, ahora_argentina
 from utils.api_manager import api_manager, batch_update_sheet
 from config.settings import SECTORES_DISPONIBLES, DEBUG_MODE
 from components.ui_kit import crm_card, crm_metric, crm_badge, crm_loading, crm_alert
-from components.ui import breadcrumb, metric_card, card, badge, loading_indicator
-
+from components.ui import breadcrumb, metric_card, card, badge, loading_spinner as loading_indicator
 def render_cierre_reclamos(df_reclamos, df_clientes, sheet_reclamos, sheet_clientes, user):
     """
     Muestra la sección de cierre y gestión avanzada de reclamos
