@@ -251,6 +251,7 @@ if (document.body.classList.contains('stApp')) {{
 
 # --- PRIMERO VERIFICAR AUTENTICACIÓN SIN CARGAR DATOS ---
 if not check_authentication():
+    from components.auth import init_auth_session
     init_auth_session()
 
     # ✅ conectar solo la hoja de usuarios antes del login
