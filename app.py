@@ -434,77 +434,109 @@ def init_google_sheets():
     @retry(wait=wait_exponential(multiplier=1, min=4, max=10), stop=stop_after_attempt(3))
     def _connect():
         creds = service_account.Credentials.from_service_account_info(
-            {**st.secrets["gcp_service_account"], "private_key": st.secrets["gcp_service_account"]["private_key"].replace("\\n", "\n")},
+            {
+                **st.secrets["gcp_service_account"],
+                "private_key": st.secrets["gcp_service_account"]["private_key"].replace("\\n", "\n")
+            },
             scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
         )
         client = gspread.authorize(creds)
+
+        # Notificaciones
         sheet_notifications = client.open_by_key(SHEET_ID).worksheet(WORKSHEET_NOTIFICACIONES)
         init_notification_manager(sheet_notifications)
-        
-        # ✅ CONEXIÓN A LA HOJA DE LOGS
+
+        # Logs (crear si no existe)
         try:
             sheet_logs = client.open_by_key(SHEET_ID).worksheet("Logs")
         except Exception:
-            # Si la hoja no existe, crear una nueva
             try:
                 spreadsheet = client.open_by_key(SHEET_ID)
                 sheet_logs = spreadsheet.add_worksheet(title="Logs", rows=1000, cols=10)
-                # Agregar encabezados
                 sheet_logs.append_row(["timestamp", "usuario", "nivel", "modulo", "accion", "detalles", "ip_address"])
             except Exception as e:
                 st.error(f"Error al crear hoja de Logs: {str(e)}")
                 sheet_logs = None
-        
+
         return (
             client.open_by_key(SHEET_ID).worksheet(WORKSHEET_RECLAMOS),
             client.open_by_key(SHEET_ID).worksheet(WORKSHEET_CLIENTES),
             client.open_by_key(SHEET_ID).worksheet(WORKSHEET_USUARIOS),
             sheet_notifications,
-            sheet_logs  # ✅ NUEVO: Retornar la hoja de logs
+            sheet_logs
         )
+
     try:
         return _connect()
     except Exception as e:
         st.error(f"Error de conexión: {str(e)}")
         st.stop()
 
+
 def precache_all_data(sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications, sheet_logs):
     _ = safe_get_sheet_data(sheet_reclamos, COLUMNAS_RECLAMOS)
     _ = safe_get_sheet_data(sheet_clientes, COLUMNAS_CLIENTES)
     _ = safe_get_sheet_data(sheet_usuarios, COLUMNAS_USUARIOS)
     _ = safe_get_sheet_data(sheet_notifications, COLUMNAS_NOTIFICACIONES)
-    # ✅ Precargar datos de logs si existe la hoja
     if sheet_logs:
         try:
-            _ = safe_get_sheet_data(sheet_logs, ["timestamp", "usuario", "nivel", "modulo", "accion", "detalles", "ip_address"])
+            _ = safe_get_sheet_data(
+                sheet_logs,
+                ["timestamp", "usuario", "nivel", "modulo", "accion", "detalles", "ip_address"]
+            )
         except Exception as e:
             st.warning(f"Advertencia al cargar logs: {str(e)}")
 
+
+# --------------------------
+# LOGIN PRIMERO
+# --------------------------
+if not check_authentication():
+    # Conectar SOLO hoja de usuarios para login
+    @st.cache_resource(ttl=3600)
+    def init_usuarios_sheet():
+        creds = service_account.Credentials.from_service_account_info(
+            {
+                **st.secrets["gcp_service_account"],
+                "private_key": st.secrets["gcp_service_account"]["private_key"].replace("\\n", "\n")
+            },
+            scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        )
+        client = gspread.authorize(creds)
+        return client.open_by_key(SHEET_ID).worksheet(WORKSHEET_USUARIOS)
+
+    sheet_usuarios = init_usuarios_sheet()
+    render_login(sheet_usuarios)
+    st.stop()
+
+# --------------------------
+# CARGAR TODO SI YA ESTÁ LOGUEADO
+# --------------------------
 loading_placeholder = st.empty()
 loading_placeholder.markdown(loading_indicator(), unsafe_allow_html=True)
+
 try:
-    # ✅ ACTUALIZAR: Recibir la hoja de logs
     sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications, sheet_logs = init_google_sheets()
     if not all([sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications]):
         st.stop()
 finally:
     loading_placeholder.empty()
 
-if not check_authentication():
-    render_login(sheet_usuarios)
-    st.stop()
-    
-# ✅ Datos del usuario actual
-user_info = st.session_state.auth.get('user_info', {})
-user_role = user_info.get('rol', '')
+# Usuario actual
+user_info = st.session_state.auth.get("user_info", {})
+user_role = user_info.get("rol", "")
 
-# ✅ ACTUALIZAR: Pasar la hoja de logs al precache
+# Precargar datos
 precache_all_data(sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications, sheet_logs)
 
-# ✅ GUARDAR LA HOJA DE LOGS EN SESSION_STATE
+# Guardar hoja de logs
 st.session_state.sheet_logs = sheet_logs
 
-df_reclamos, df_clientes, df_usuarios = safe_get_sheet_data(sheet_reclamos, COLUMNAS_RECLAMOS), safe_get_sheet_data(sheet_clientes, COLUMNAS_CLIENTES), safe_get_sheet_data(sheet_usuarios, COLUMNAS_USUARIOS)
+# Cargar DataFrames principales
+df_reclamos = safe_get_sheet_data(sheet_reclamos, COLUMNAS_RECLAMOS)
+df_clientes = safe_get_sheet_data(sheet_clientes, COLUMNAS_CLIENTES)
+df_usuarios = safe_get_sheet_data(sheet_usuarios, COLUMNAS_USUARIOS)
+
 st.session_state.df_reclamos = df_reclamos
 st.session_state.df_clientes = df_clientes
 st.session_state.df_usuarios = df_usuarios
