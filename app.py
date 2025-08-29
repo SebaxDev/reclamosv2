@@ -175,19 +175,44 @@ st.markdown(load_tailwind(), unsafe_allow_html=True)
 st.markdown(get_main_styles_v3(dark_mode=st.session_state.modo_oscuro), unsafe_allow_html=True)
 
 # Añadir clases de Tailwind al body
-st.markdown("""
+st.markdown(f"""
 <script>
 // Aplicar clase dark si está en modo oscuro
-if (document.body.classList.contains('stApp')) {
+if (document.body.classList.contains('stApp')) {{
     document.body.classList.add('bg-gray-50');
-    if (%s) {
+    if ({'true' if st.session_state.modo_oscuro else 'false'}) {{
         document.body.classList.add('dark');
         document.body.classList.remove('bg-gray-50');
         document.body.style.backgroundColor = 'var(--bg-primary)';
-    }
-}
+    }}
+}}
 </script>
-""" % ('true' if st.session_state.modo_oscuro else 'false'), unsafe_allow_html=True)
+""", unsafe_allow_html=True)
+
+# --- PRIMERO VERIFICAR AUTENTICACIÓN ANTES DE CARGAR DATOS ---
+if not check_authentication():
+    # Solo mostrar login sin cargar nada más
+    render_login(sheet_usuarios)
+    st.stop()
+
+# --- SOLO SI ESTÁ AUTENTICADO CONTINUAR CON LA CARGA DE DATOS ---
+loading_placeholder = st.empty()
+loading_placeholder.markdown(loading_indicator(), unsafe_allow_html=True)
+
+try:
+    # ✅ ACTUALIZAR: Recibir la hoja de logs
+    sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications, sheet_logs = init_google_sheets()
+    if not all([sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications]):
+        st.stop()
+finally:
+    loading_placeholder.empty()
+
+# ✅ Datos del usuario actual
+user_info = st.session_state.auth.get('user_info', {})
+user_role = user_info.get('rol', '')
+
+# ✅ ACTUALIZAR: Pasar la hoja de logs al precache
+precache_all_data(sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications, sheet_logs)
 
 # --------------------------
 # FUNCIONES AUXILIARES OPTIMIZADAS

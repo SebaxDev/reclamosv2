@@ -56,7 +56,7 @@ def verify_credentials(username, password, sheet_usuarios):
 def render_login(sheet_usuarios):
     """Formulario de login con diseño moderno CRM"""
     
-    # CSS personalizado para el login
+    # CSS personalizado para el login - SEPARAR en una variable
     login_styles = """
     <style>
     .login-container {
@@ -154,6 +154,7 @@ def render_login(sheet_usuarios):
     </style>
     """
     
+    # Aplicar los estilos PRIMERO
     st.markdown(login_styles, unsafe_allow_html=True)
     
     # Inicializar estado de carga
@@ -212,7 +213,7 @@ def render_login(sheet_usuarios):
             st.rerun()
     
     else:
-        # Formulario de login principal
+        # Formulario de login principal - usar st.markdown con unsafe_allow_html=True
         st.markdown("""
         <div class="login-container">
             <div class="login-header">
@@ -237,7 +238,7 @@ def render_login(sheet_usuarios):
             """, unsafe_allow_html=True)
             st.session_state.login_attempt = False
         
-        # Formulario de login
+        # Formulario de login - usar st.form normal
         with st.form("login_form", clear_on_submit=True):
             # Campo de usuario
             st.markdown('<div class="login-form-group">', unsafe_allow_html=True)
