@@ -189,10 +189,15 @@ if (document.body.classList.contains('stApp')) {{
 </script>
 """, unsafe_allow_html=True)
 
-# --- PRIMERO VERIFICAR AUTENTICACIÓN ANTES DE CARGAR DATOS ---
+# --- PRIMERO VERIFICAR AUTENTICACIÓN SIN CARGAR DATOS ---
 if not check_authentication():
-    # Solo mostrar login sin cargar nada más
-    render_login(sheet_usuarios)
+    # Inicializar auth session pero NO cargar Google Sheets todavía
+    from components.auth import init_auth_session
+    init_auth_session()
+    
+    # Mostrar login sin pasar sheet_usuarios (lo cargaremos después)
+    from components.auth import render_login
+    render_login(None)  # Pasar None ya que sheet_usuarios no está disponible todavía
     st.stop()
 
 # --- SOLO SI ESTÁ AUTENTICADO CONTINUAR CON LA CARGA DE DATOS ---
