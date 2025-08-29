@@ -431,29 +431,35 @@ def migrar_uuids_existentes(sheet_reclamos, sheet_clientes):
 @st.cache_resource(ttl=3600)
 def init_google_sheets():
     """Conexión optimizada a Google Sheets con retry automático"""
+
     @retry(wait=wait_exponential(multiplier=1, min=4, max=10), stop=stop_after_attempt(3))
     def _connect():
         creds = service_account.Credentials.from_service_account_info(
             {
                 **st.secrets["gcp_service_account"],
-                "private_key": st.secrets["gcp_service_account"]["private_key"].replace("\\n", "\n")
+                "private_key": st.secrets["gcp_service_account"]["private_key"].replace("\\n", "\n"),
             },
-            scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+            scopes=[
+                "https://www.googleapis.com/auth/spreadsheets",
+                "https://www.googleapis.com/auth/drive",
+            ],
         )
         client = gspread.authorize(creds)
 
-        # Notificaciones
+        # Hoja de notificaciones
         sheet_notifications = client.open_by_key(SHEET_ID).worksheet(WORKSHEET_NOTIFICACIONES)
         init_notification_manager(sheet_notifications)
 
-        # Logs (crear si no existe)
+        # Hoja de logs (crear si no existe)
         try:
             sheet_logs = client.open_by_key(SHEET_ID).worksheet("Logs")
         except Exception:
             try:
                 spreadsheet = client.open_by_key(SHEET_ID)
                 sheet_logs = spreadsheet.add_worksheet(title="Logs", rows=1000, cols=10)
-                sheet_logs.append_row(["timestamp", "usuario", "nivel", "modulo", "accion", "detalles", "ip_address"])
+                sheet_logs.append_row(
+                    ["timestamp", "usuario", "nivel", "modulo", "accion", "detalles", "ip_address"]
+                )
             except Exception as e:
                 st.error(f"Error al crear hoja de Logs: {str(e)}")
                 sheet_logs = None
@@ -463,7 +469,7 @@ def init_google_sheets():
             client.open_by_key(SHEET_ID).worksheet(WORKSHEET_CLIENTES),
             client.open_by_key(SHEET_ID).worksheet(WORKSHEET_USUARIOS),
             sheet_notifications,
-            sheet_logs
+            sheet_logs,
         )
 
     try:
@@ -474,33 +480,41 @@ def init_google_sheets():
 
 
 def precache_all_data(sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications, sheet_logs):
+    """Precargar datos de todas las hojas"""
     _ = safe_get_sheet_data(sheet_reclamos, COLUMNAS_RECLAMOS)
     _ = safe_get_sheet_data(sheet_clientes, COLUMNAS_CLIENTES)
     _ = safe_get_sheet_data(sheet_usuarios, COLUMNAS_USUARIOS)
     _ = safe_get_sheet_data(sheet_notifications, COLUMNAS_NOTIFICACIONES)
+
     if sheet_logs:
         try:
             _ = safe_get_sheet_data(
                 sheet_logs,
-                ["timestamp", "usuario", "nivel", "modulo", "accion", "detalles", "ip_address"]
+                ["timestamp", "usuario", "nivel", "modulo", "accion", "detalles", "ip_address"],
             )
         except Exception as e:
             st.warning(f"Advertencia al cargar logs: {str(e)}")
 
 
 # --------------------------
-# LOGIN PRIMERO
+# LOGIN
 # --------------------------
 if not check_authentication():
-    # Conectar SOLO hoja de usuarios para login
+    # Inicializar auth session
+    init_auth_session()
+
+    # Conectar solo la hoja de usuarios para login
     @st.cache_resource(ttl=3600)
     def init_usuarios_sheet():
         creds = service_account.Credentials.from_service_account_info(
             {
                 **st.secrets["gcp_service_account"],
-                "private_key": st.secrets["gcp_service_account"]["private_key"].replace("\\n", "\n")
+                "private_key": st.secrets["gcp_service_account"]["private_key"].replace("\\n", "\n"),
             },
-            scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+            scopes=[
+                "https://www.googleapis.com/auth/spreadsheets",
+                "https://www.googleapis.com/auth/drive",
+            ],
         )
         client = gspread.authorize(creds)
         return client.open_by_key(SHEET_ID).worksheet(WORKSHEET_USUARIOS)
@@ -509,8 +523,9 @@ if not check_authentication():
     render_login(sheet_usuarios)
     st.stop()
 
+
 # --------------------------
-# CARGAR TODO SI YA ESTÁ LOGUEADO
+# CARGA DE DATOS SI ESTÁ LOGUEADO
 # --------------------------
 loading_placeholder = st.empty()
 loading_placeholder.markdown(loading_indicator(), unsafe_allow_html=True)
@@ -526,13 +541,13 @@ finally:
 user_info = st.session_state.auth.get("user_info", {})
 user_role = user_info.get("rol", "")
 
-# Precargar datos
+# Precargar
 precache_all_data(sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications, sheet_logs)
 
 # Guardar hoja de logs
 st.session_state.sheet_logs = sheet_logs
 
-# Cargar DataFrames principales
+# DataFrames principales
 df_reclamos = safe_get_sheet_data(sheet_reclamos, COLUMNAS_RECLAMOS)
 df_clientes = safe_get_sheet_data(sheet_clientes, COLUMNAS_CLIENTES)
 df_usuarios = safe_get_sheet_data(sheet_usuarios, COLUMNAS_USUARIOS)
