@@ -4,6 +4,10 @@ from config.settings import PERMISOS_POR_ROL
 
 def has_permission(permiso_requerido):
     """Verifica si el usuario actual tiene un permiso específico"""
+    # Verificar si auth existe en session_state
+    if 'auth' not in st.session_state:
+        return False
+        
     user_info = st.session_state.auth.get('user_info', {})
     rol = user_info.get('rol', '')
     
