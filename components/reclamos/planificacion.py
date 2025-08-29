@@ -15,8 +15,6 @@ from config.settings import (
     MATERIALES_POR_RECLAMO,
     ROUTER_POR_SECTOR
 )
-from components.ui_kit import crm_card, crm_metric, crm_badge, crm_loading, crm_alert
-from components.ui import breadcrumb, metric_card, card, badge, loading_spinner as loading_indicator
 
 GRUPOS_POSIBLES = [f"Grupo {letra}" for letra in "ABCDE"]
 
@@ -295,28 +293,20 @@ def distribuir_por_tipo(df_reclamos, grupos_activos):
 
 def _mostrar_asignacion_tecnicos(grupos_activos):
     """Muestra la interfaz para asignar técnicos a grupos"""
-    st.markdown("""
-    <div class="bg-white dark:bg-gray-800 rounded-xl p-4 mb-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">👷 Asignar Técnicos a Grupos</h3>
-    """, unsafe_allow_html=True)
-    
+    st.markdown("### 👷 Asignar técnicos a cada grupo")
     for grupo in list(st.session_state.tecnicos_grupos.keys())[:grupos_activos]:
         st.session_state.tecnicos_grupos[grupo] = st.multiselect(
             f"{grupo} - Técnicos asignados",
             TECNICOS_DISPONIBLES,
             default=st.session_state.tecnicos_grupos[grupo],
-            key=f"tecnicos_{grupo}",
-            help=f"Seleccionar técnicos para {grupo}"
+            key=f"tecnicos_{grupo}"
         )
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+
 
 def _mostrar_reclamos_disponibles(df_reclamos, grupos_activos):
     """Muestra reclamos disponibles para asignar"""
-    st.markdown("""
-    <div class="bg-white dark:bg-gray-800 rounded-xl p-4 mb-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">📋 Reclamos Pendientes para Asignar</h3>
-    """, unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown("### 📋 Reclamos pendientes para asignar")
 
     df_reclamos.columns = df_reclamos.columns.str.strip()
     df_reclamos["ID Reclamo"] = df_reclamos["ID Reclamo"].astype(str).str.strip()
@@ -325,7 +315,6 @@ def _mostrar_reclamos_disponibles(df_reclamos, grupos_activos):
     # Verificamos si hay IDs vacíos
     if df_reclamos["ID Reclamo"].eq("").any():
         st.error("❌ Hay reclamos con ID vacío. Por favor, corregílos en la hoja antes de continuar.")
-        st.markdown('</div>', unsafe_allow_html=True)
         return None
 
     df_pendientes = df_reclamos[df_reclamos["Estado"] == "Pendiente"].copy()
@@ -377,8 +366,8 @@ def _mostrar_reclamos_disponibles(df_reclamos, grupos_activos):
 
         st.divider()
 
-    st.markdown('</div>', unsafe_allow_html=True)
     return df_pendientes
+
 
 def _mostrar_detalles_reclamo(reclamo):
     """Muestra los detalles de un reclamo"""
@@ -391,6 +380,7 @@ def _mostrar_detalles_reclamo(reclamo):
     """)
     if reclamo.get("Detalles"):
         st.markdown(f"**📝 Detalles:** {reclamo['Detalles'][:250]}{'...' if len(reclamo['Detalles']) > 250 else ''}")
+
 
 def _format_fecha_reclamo(fecha):
     """Formatea la fecha del reclamo para visualización"""
@@ -414,56 +404,22 @@ def render_planificacion_grupos(df_reclamos, sheet_reclamos, user):
         st.warning("⚠️ Solo los administradores pueden acceder a esta sección")
         return {'needs_refresh': False}
 
-    # Header moderno
-    st.markdown("""
-    <div class="flex items-center justify-between bg-white dark:bg-gray-800 rounded-xl p-4 mb-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-        <div class="flex items-center space-x-3">
-            <span class="text-xl text-primary-600">📋</span>
-            <div>
-                <h1 class="text-xl font-bold text-gray-900 dark:text-white">Planificación de Grupos de Trabajo</h1>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Asignación inteligente de reclamos a técnicos</p>
-            </div>
-        </div>
-        <span class="text-sm text-gray-400">
-            {datetime.now().strftime('%d/%m/%Y %H:%M')}
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
+    st.subheader("📋 Asignación de reclamos a grupos de trabajo")
 
     try:
         inicializar_estado_grupos()
         _limpiar_asignaciones(df_reclamos)
 
-        # Configuración principal en tarjeta
-        with st.container():
-            st.markdown("""
-            <div class="bg-white dark:bg-gray-800 rounded-xl p-4 mb-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">⚙️ Configuración de Grupos</h3>
-            """, unsafe_allow_html=True)
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                grupos_activos = st.slider(
-                    "🔢 Cantidad de grupos activos", 
-                    1, 5, 2,
-                    help="Número de grupos de trabajo que participarán"
-                )
-            with col2:
-                modo_distribucion = st.selectbox(
-                    "📊 Modo de distribución",
-                    ["Manual", "Automática por sector (mejorada)", "Automática por tipo de reclamo"],
-                    index=0,
-                    help="Seleccionar método de distribución automática"
-                )
-            
-            st.markdown('</div>', unsafe_allow_html=True)
+        grupos_activos = st.slider("🔢 Cantidad de grupos de trabajo activos", 1, 5, 2)
+
+        modo_distribucion = st.selectbox(
+            "📊 Elegí el modo de distribución",
+            ["Manual", "Automática por sector (mejorada)", "Automática por tipo de reclamo"],
+            index=0
+        )
 
         if modo_distribucion != "Manual":
-            if st.button(
-                "⚙️ Distribuir Reclamos Automáticamente", 
-                use_container_width=True,
-                type="primary"
-            ):
+            if st.button("⚙️ Distribuir reclamos ahora"):
                 if modo_distribucion == "Automática por sector (mejorada)":
                     st.session_state.simulacion_asignaciones = distribuir_por_sector_mejorado(df_reclamos, grupos_activos)
 
@@ -484,11 +440,7 @@ def render_planificacion_grupos(df_reclamos, sheet_reclamos, user):
                 st.success("✅ Distribución previa generada. Revisala antes de guardar.")
 
         if st.session_state.get("vista_simulacion"):
-            st.markdown("""
-            <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 mb-6 border border-blue-200 dark:border-blue-700">
-                <h3 class="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-4">🗂️ Vista Previa de Distribución</h3>
-            """, unsafe_allow_html=True)
-            
+            st.subheader("🗂️ Distribución previa de reclamos")
             for grupo, reclamos in st.session_state.simulacion_asignaciones.items():
                 st.markdown(f"### 📦 {grupo} - {len(reclamos)} reclamos")
                 for rid in reclamos:
@@ -498,11 +450,7 @@ def render_planificacion_grupos(df_reclamos, sheet_reclamos, user):
                         st.markdown(f"- {r['Nº Cliente']} | {r['Tipo de reclamo']} | Sector {r['Sector']}")
 
             # Solo opción de confirmar, sin generar PDF en la simulación
-            if st.button(
-                "💾 Confirmar y Guardar Asignación", 
-                use_container_width=True,
-                type="primary"
-            ):
+            if st.button("💾 Confirmar y guardar esta asignación"):
                 for g in GRUPOS_POSIBLES:
                     st.session_state.asignaciones_grupos[g] = []
                         
@@ -510,14 +458,8 @@ def render_planificacion_grupos(df_reclamos, sheet_reclamos, user):
                 st.session_state.vista_simulacion = False
                 st.success("✅ Asignaciones aplicadas.")
                 st.rerun()
-            
-            st.markdown('</div>', unsafe_allow_html=True)
 
-        if st.button(
-            "🔄 Refrescar Reclamos", 
-            use_container_width=True,
-            type="secondary"
-        ):
+        if st.button("🔄 Refrescar reclamos"):
             st.cache_data.clear()
             return {'needs_refresh': True}
 
@@ -542,10 +484,8 @@ def render_planificacion_grupos(df_reclamos, sheet_reclamos, user):
 
 def _mostrar_reclamos_asignados(df_pendientes, grupos_activos):
     """Muestra los reclamos asignados por grupo"""
-    st.markdown("""
-    <div class="bg-white dark:bg-gray-800 rounded-xl p-4 mb-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">📌 Reclamos Asignados por Grupo</h3>
-    """, unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown("### 📌 Reclamos asignados por grupo")
 
     materiales_por_grupo = {}
 
@@ -587,8 +527,8 @@ def _mostrar_reclamos_asignados(df_pendientes, grupos_activos):
 
             st.divider()
 
-    st.markdown('</div>', unsafe_allow_html=True)
     return materiales_por_grupo
+
 
 def _calcular_materiales_grupo(reclamos_grupo):
     """Calcula los materiales necesarios para un grupo de trabajo"""
@@ -605,33 +545,22 @@ def _calcular_materiales_grupo(reclamos_grupo):
             materiales_total[key] = materiales_total.get(key, 0) + cant
     return materiales_total
 
+
 def _mostrar_acciones_finales(df_reclamos, sheet_reclamos, grupos_activos, materiales_por_grupo, df_pendientes):
     """Muestra botones de acción final y maneja su lógica"""
-    st.markdown("""
-    <div class="bg-white dark:bg-gray-800 rounded-xl p-4 mb-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">🚀 Acciones Finales</h3>
-    """, unsafe_allow_html=True)
-    
+    st.markdown("---")
     cambios = False
 
     col1, col2 = st.columns(2)
 
-    if col1.button(
-        "💾 Guardar Cambios y Pasar a 'En Curso'", 
-        use_container_width=True,
-        type="primary"
-    ):
+    if col1.button("💾 Guardar cambios y pasar a 'En curso'", use_container_width=True):
         cambios = _guardar_cambios(df_reclamos, sheet_reclamos, grupos_activos)
 
-    if col2.button(
-        "📄 Generar PDF de Asignaciones", 
-        use_container_width=True,
-        type="secondary"
-    ):
+    if col2.button("📄 Generar PDF de asignaciones por grupo", use_container_width=True):
         _generar_pdf_asignaciones(grupos_activos, materiales_por_grupo, df_pendientes)
 
-    st.markdown('</div>', unsafe_allow_html=True)
     return cambios
+
 
 def _guardar_cambios(df_reclamos, sheet_reclamos, grupos_activos):
     """Guarda los cambios en la hoja de cálculo"""
@@ -684,6 +613,7 @@ def _guardar_cambios(df_reclamos, sheet_reclamos, grupos_activos):
                 st.error("❌ Error al actualizar: " + str(error))
 
     return False
+
 
 def _generar_pdf_asignaciones(grupos_activos, materiales_por_grupo, df_pendientes):
     """Genera un PDF con las asignaciones de grupos"""
@@ -764,9 +694,8 @@ def _generar_pdf_asignaciones(grupos_activos, materiales_por_grupo, df_pendiente
     buffer.seek(0)
 
     st.download_button(
-        label="📄 Descargar PDF de Asignaciones",
+        label="📄 Descargar PDF de asignaciones",
         data=buffer,
         file_name="asignaciones_grupos.pdf",
-        mime="application/pdf",
-        use_container_width=True
+        mime="application/pdf"
     )

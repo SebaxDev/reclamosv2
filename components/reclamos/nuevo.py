@@ -47,7 +47,7 @@ def _verificar_reclamos_activos(nro_cliente, df_reclamos):
     reclamos_cliente = df_reclamos[df_reclamos["Nº Cliente"] == nro_cliente]
     
     # Convertir estados a minúsculas para comparación case-insensitive
-    estados_activos = ["pendiente", "en curso", "desconexión"]
+    estados_activos = ["pendiente", "en curso"]
     reclamos_activos = reclamos_cliente[
         reclamos_cliente["Estado"].str.strip().str.lower().isin(estados_activos) |
         (reclamos_cliente["Tipo de reclamo"].str.strip().str.lower() == "Desconexion a Pedido")
@@ -63,19 +63,9 @@ def generar_id_unico():
 # --- FUNCIÓN PRINCIPAL OPTIMIZADA ---
 def render_nuevo_reclamo(df_reclamos, df_clientes, sheet_reclamos, sheet_clientes, current_user=None):
     """
-    Muestra la sección para cargar nuevos reclamos con diseño CRM moderno
+    Muestra la sección para cargar nuevos reclamos
     """
-    # Header moderno
-    st.markdown("""
-    <div class="mb-6">
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-            <span class="mr-3">📝</span> Cargar nuevo reclamo
-        </h2>
-        <p class="text-gray-600 dark:text-gray-400 mt-1">
-            Complete el formulario para registrar un nuevo reclamo técnico
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.subheader("📝 Cargar nuevo reclamo")
 
     estado = {
         'nro_cliente': '',
@@ -85,13 +75,9 @@ def render_nuevo_reclamo(df_reclamos, df_clientes, sheet_reclamos, sheet_cliente
         'cliente_nuevo': False
     }
 
-    # Campo de número de cliente con diseño mejorado
-    st.markdown('<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">🔢 N° de Cliente</label>', unsafe_allow_html=True)
     estado['nro_cliente'] = st.text_input(
-        "", 
-        placeholder="Ingresa el número de cliente",
-        label_visibility="collapsed",
-        key="nro_cliente_input"
+        "🔢 N° de Cliente", 
+        placeholder="Ingresa el número de cliente"
     ).strip()
 
     if estado['nro_cliente']:
@@ -105,75 +91,29 @@ def render_nuevo_reclamo(df_reclamos, df_clientes, sheet_reclamos, sheet_cliente
         
         if not match.empty:
             estado['cliente_existente'] = match.iloc[0].to_dict()
-            st.markdown("""
-            <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                <div class="flex items-center">
-                    <span class="text-green-600 text-lg mr-2">✅</span>
-                    <span class="text-green-800 font-medium">Cliente reconocido, datos auto-cargados.</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.success("✅ Cliente reconocido, datos auto-cargados.")
 
         else:
             estado['cliente_nuevo'] = True
-            st.markdown("""
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <div class="flex items-center">
-                    <span class="text-blue-600 text-lg mr-2">ℹ️</span>
-                    <span class="text-blue-800">Este cliente no existe en la base y se cargará como cliente nuevo.</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.info("ℹ️ Este cliente no existe en la base y se cargará como cliente nuevo.")
         
         # Verificar reclamos activos
         reclamos_activos = _verificar_reclamos_activos(estado['nro_cliente'], df_reclamos_norm)
         
         if not reclamos_activos.empty:
             estado['formulario_bloqueado'] = True
-            st.markdown("""
-            <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                <div class="flex items-center">
-                    <span class="text-red-600 text-lg mr-2">⚠️</span>
-                    <span class="text-red-800 font-medium">Este cliente ya tiene un reclamo sin resolver o una desconexión activa.</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.error("⚠️ Este cliente ya tiene un reclamo sin resolver o una desconexión activa.")
             
             # Mostrar reclamos activos
             for _, reclamo in reclamos_activos.iterrows():
-                with st.expander(f"🔍 Reclamo activo - {format_fecha(reclamo['Fecha y hora'], '%d/%m/%Y %H:%M')}", expanded=False):
-                    st.markdown(f"""
-                    <div class="bg-gray-50 rounded-lg p-4">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <p class="text-sm text-gray-600">👤 Cliente</p>
-                                <p class="font-medium">{reclamo.get('Nombre', 'N/A')}</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-600">📌 Tipo</p>
-                                <p class="font-medium">{reclamo.get('Tipo de reclamo', 'N/A')}</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-600">📝 Detalles</p>
-                                <p class="font-medium">{reclamo.get('Detalles', 'N/A')[:200]}...</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-600">⚙️ Estado</p>
-                                <p class="font-medium">{reclamo.get('Estado', 'Sin estado')}</p>
-                            </div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                with st.expander(f"🔍 Reclamo activo - {format_fecha(reclamo['Fecha y hora'], '%d/%m/%Y %H:%M')}"):
+                    st.markdown(f"**👤 Cliente:** {reclamo.get('Nombre', 'N/A')}")
+                    st.markdown(f"**📌 Tipo:** {reclamo.get('Tipo de reclamo', 'N/A')}")
+                    st.markdown(f"**📝 Detalles:** {reclamo.get('Detalles', 'N/A')[:200]}...")
+                    st.markdown(f"**⚙️ Estado:** {reclamo.get('Estado', 'Sin estado')}")
 
     if estado['reclamo_guardado']:
-        st.markdown("""
-        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-            <div class="flex items-center">
-                <span class="text-green-600 text-lg mr-2">✅</span>
-                <span class="text-green-800 font-medium">Reclamo registrado correctamente.</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.success("✅ Reclamo registrado correctamente.")
     elif not estado['formulario_bloqueado']:
         estado = _mostrar_formulario_reclamo(estado, df_clientes, sheet_reclamos, sheet_clientes, current_user)
 
@@ -181,13 +121,7 @@ def render_nuevo_reclamo(df_reclamos, df_clientes, sheet_reclamos, sheet_cliente
 
 # --- FUNCIÓN DE FORMULARIO MEJORADA ---
 def _mostrar_formulario_reclamo(estado, df_clientes, sheet_reclamos, sheet_clientes, current_user):
-    """Muestra y procesa el formulario de nuevo reclamo con diseño moderno"""
-    
-    st.markdown("""
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">📋 Información del Reclamo</h3>
-    """, unsafe_allow_html=True)
-    
+    """Muestra y procesa el formulario de nuevo reclamo"""
     with st.form("reclamo_formulario", clear_on_submit=False):
         col1, col2 = st.columns(2)
 
@@ -196,99 +130,60 @@ def _mostrar_formulario_reclamo(estado, df_clientes, sheet_reclamos, sheet_clien
             cliente_data = estado['cliente_existente']
             
             with col1:
-                st.markdown('<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">👤 Nombre del Cliente</label>', unsafe_allow_html=True)
                 nombre = st.text_input(
-                    "",
-                    value=cliente_data.get("Nombre", ""),
-                    label_visibility="collapsed",
-                    key="nombre_cliente"
+                    "👤 Nombre del Cliente",
+                    value=cliente_data.get("Nombre", "")
                 )
-                
-                st.markdown('<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">📍 Dirección</label>', unsafe_allow_html=True)
                 direccion = st.text_input(
-                    "",
-                    value=cliente_data.get("Dirección", ""),
-                    label_visibility="collapsed",
-                    key="direccion_cliente"
+                    "📍 Dirección",
+                    value=cliente_data.get("Dirección", "")
                 )
 
             with col2:
-                st.markdown('<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">📞 Teléfono</label>', unsafe_allow_html=True)
                 telefono = st.text_input(
-                    "",
-                    value=cliente_data.get("Teléfono", ""),
-                    label_visibility="collapsed",
-                    key="telefono_cliente"
+                    "📞 Teléfono",
+                    value=cliente_data.get("Teléfono", "")
                 )
                 
                 # Sector con validación mejorada
-                st.markdown('<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">🔢 Sector (1-17)</label>', unsafe_allow_html=True)
                 sector_existente = cliente_data.get("Sector", "1")
                 sector_normalizado, error_sector = _validar_y_normalizar_sector(sector_existente)
                 
                 if error_sector:
                     st.warning(error_sector)
-                    sector = st.text_input("", value="1", label_visibility="collapsed", key="sector_cliente")
+                    sector = st.text_input("🔢 Sector (1-17)", value="1")
                 else:
-                    sector = st.text_input("", value=sector_normalizado, label_visibility="collapsed", key="sector_cliente")
+                    sector = st.text_input("🔢 Sector (1-17)", value=sector_normalizado)
 
         else:
             with col1:
-                st.markdown('<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">👤 Nombre del Cliente</label>', unsafe_allow_html=True)
-                nombre = st.text_input("", placeholder="Nombre completo", label_visibility="collapsed", key="nombre_nuevo")
-                
-                st.markdown('<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">📍 Dirección</label>', unsafe_allow_html=True)
-                direccion = st.text_input("", placeholder="Dirección completa", label_visibility="collapsed", key="direccion_nuevo")
+                nombre = st.text_input("👤 Nombre del Cliente", placeholder="Nombre completo")
+                direccion = st.text_input("📍 Dirección", placeholder="Dirección completa")
             
             with col2:
-                st.markdown('<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">📞 Teléfono</label>', unsafe_allow_html=True)
-                telefono = st.text_input("", placeholder="Número de contacto", label_visibility="collapsed", key="telefono_nuevo")
-                
-                st.markdown('<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">🔢 Sector (1-17)</label>', unsafe_allow_html=True)
-                sector = st.text_input("", placeholder="Ej: 5", label_visibility="collapsed", key="sector_nuevo")
+                telefono = st.text_input("📞 Teléfono", placeholder="Número de contacto")
+                sector = st.text_input("🔢 Sector (1-17)", placeholder="Ej: 5")
 
         # Campos del reclamo
-        st.markdown("""
-        <div class="mt-6">
-            <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-4">📋 Detalles del Reclamo</h4>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown('<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">📌 Tipo de Reclamo</label>', unsafe_allow_html=True)
-        tipo_reclamo = st.selectbox("", TIPOS_RECLAMO, label_visibility="collapsed", key="tipo_reclamo")
-        
-        st.markdown('<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">📝 Detalles del Reclamo</label>', unsafe_allow_html=True)
-        detalles = st.text_area("", placeholder="Describe el problema...", height=100, label_visibility="collapsed", key="detalles_reclamo")
+        tipo_reclamo = st.selectbox("📌 Tipo de Reclamo", TIPOS_RECLAMO)
+        detalles = st.text_area("📝 Detalles del Reclamo", placeholder="Describe el problema...", height=100)
 
         col3, col4 = st.columns(2)
         with col3:
-            st.markdown('<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">🔒 N° de Precinto (opcional)</label>', unsafe_allow_html=True)
             precinto = st.text_input(
-                "",
+                "🔒 N° de Precinto (opcional)",
                 value=estado['cliente_existente'].get("N° de Precinto", "") if estado['cliente_existente'] else "",
-                placeholder="Número de precinto",
-                label_visibility="collapsed",
-                key="precinto_cliente"
+                placeholder="Número de precinto"
             )
         
         with col4:
-            st.markdown('<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">👤 Atendido por</label>', unsafe_allow_html=True)
             atendido_por = st.text_input(
-                "", 
+                "👤 Atendido por", 
                 placeholder="Nombre de quien atiende", 
-                value=current_user or "",
-                label_visibility="collapsed",
-                key="atendido_por"
+                value=current_user or ""
             )
 
-        # Botón de envío con diseño moderno
-        enviado = st.form_submit_button(
-            "💾 Guardar Reclamo", 
-            use_container_width=True,
-            type="primary"
-        )
-
-    st.markdown("</div>", unsafe_allow_html=True)
+        enviado = st.form_submit_button("✅ Guardar Reclamo", use_container_width=True)
 
     if enviado:
         estado = _procesar_envio_formulario(
@@ -316,14 +211,7 @@ def _procesar_envio_formulario(estado, nombre, direccion, telefono, sector, tipo
     campos_vacios = [campo for campo, valor in campos_obligatorios.items() if not valor]
     
     if campos_vacios:
-        st.markdown(f"""
-        <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-            <div class="flex items-center">
-                <span class="text-red-600 text-lg mr-2">❌</span>
-                <span class="text-red-800">Campos obligatorios vacíos: {', '.join(campos_vacios)}</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.error(f"⚠️ Campos obligatorios vacíos: {', '.join(campos_vacios)}")
         return estado
 
     # Validar y normalizar sector
@@ -332,18 +220,11 @@ def _procesar_envio_formulario(estado, nombre, direccion, telefono, sector, tipo
         st.error(error_sector)
         return estado
 
-    # Mostrar loading state
-    with st.spinner("💾 Guardando reclamo..."):
+    with st.spinner("Guardando reclamo..."):
         try:
             # Preparar datos del reclamo
             fecha_hora = ahora_argentina()
-            
-            # ✅ CORRECCIÓN: Desconexiones a Pedido se guardan con estado "Desconexión"
-            if tipo_reclamo.lower() == "Desconexion a Pedido":
-                estado_reclamo = "Desconexión"
-            else:
-                estado_reclamo = "Pendiente"
-                
+            estado_reclamo = "Desconexión" if tipo_reclamo.lower() == "Desconexion a Pedido" else "Pendiente"
             id_reclamo = generar_id_unico()
 
             fila_reclamo = [
@@ -355,7 +236,7 @@ def _procesar_envio_formulario(estado, nombre, direccion, telefono, sector, tipo
                 telefono.strip(),
                 tipo_reclamo,
                 detalles.upper(),
-                estado_reclamo,  # ✅ Estado corregido aquí
+                estado_reclamo,
                 "",  # Técnico (vacío inicialmente)
                 precinto.strip(),
                 atendido_por.upper(),
@@ -375,17 +256,7 @@ def _procesar_envio_formulario(estado, nombre, direccion, telefono, sector, tipo
                     'formulario_bloqueado': True
                 })
                 
-                st.markdown(f"""
-                <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                    <div class="flex items-center">
-                        <span class="text-green-600 text-lg mr-2">✅</span>
-                        <div>
-                            <span class="text-green-800 font-medium">Reclamo guardado correctamente</span>
-                            <p class="text-green-700 text-sm">ID: {id_reclamo} - Estado: {estado_reclamo}</p>
-                        </div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                st.success(f"✅ Reclamo guardado - ID: {id_reclamo}")
                 
                 # Gestionar cliente (nuevo o actualización)
                 _gestionar_cliente(
@@ -408,24 +279,10 @@ def _procesar_envio_formulario(estado, nombre, direccion, telefono, sector, tipo
                 st.rerun()
                 
             else:
-                st.markdown(f"""
-                <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                    <div class="flex items-center">
-                        <span class="text-red-600 text-lg mr-2">❌</span>
-                        <span class="text-red-800">Error al guardar: {error}</span>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                st.error(f"❌ Error al guardar: {error}")
 
         except Exception as e:
-            st.markdown(f"""
-            <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                <div class="flex items-center">
-                    <span class="text-red-600 text-lg mr-2">❌</span>
-                    <span class="text-red-800">Error inesperado: {str(e)}</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.error(f"❌ Error inesperado: {str(e)}")
             if DEBUG_MODE:
                 st.exception(e)
     
@@ -440,14 +297,7 @@ def _gestionar_cliente(nro_cliente, sector, nombre, direccion, telefono, precint
         fila_cliente = [nro_cliente, sector, nombre.upper(), direccion.upper(), telefono.strip(), precinto.strip()]
         success, _ = api_manager.safe_sheet_operation(sheet_clientes.append_row, fila_cliente)
         if success:
-            st.markdown("""
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <div class="flex items-center">
-                    <span class="text-blue-600 text-lg mr-2">ℹ️</span>
-                    <span class="text-blue-800">Nuevo cliente registrado en la base de datos</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.info("ℹ️ Nuevo cliente registrado")
     else:
         # Actualizar cliente existente
         updates = []
@@ -471,11 +321,4 @@ def _gestionar_cliente(nro_cliente, sector, nombre, direccion, telefono, precint
                 batch_update_sheet, sheet_clientes, updates, is_batch=True
             )
             if success:
-                st.markdown("""
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                    <div class="flex items-center">
-                        <span class="text-blue-600 text-lg mr-2">🔄</span>
-                        <span class="text-blue-800">Datos del cliente actualizados</span>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                st.info("🔁 Datos del cliente actualizados")

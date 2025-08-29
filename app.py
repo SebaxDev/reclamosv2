@@ -42,7 +42,6 @@ from config.settings import (
 )
 
 # Local components
-from components.admin import render_panel_administracion
 from components.reclamos.nuevo import render_nuevo_reclamo
 from components.reclamos.gestion import render_gestion_reclamos
 from components.clientes.gestion import render_gestion_clientes
@@ -52,161 +51,19 @@ from components.reclamos.cierre import render_cierre_reclamos
 from components.resumen_jornada import render_resumen_jornada
 from components.notifications import init_notification_manager
 from components.notification_bell import render_notification_bell
-from components.auth import render_login, check_authentication, render_user_info
-from components.navigation import render_sidebar_navigation
+from components.auth import has_permission, check_authentication, render_login
+from components.navigation import render_sidebar_navigation, render_user_info
 from components.metrics_dashboard import render_metrics_dashboard, metric_card
-from components.ui import breadcrumb, metric_card, card, badge, loading_spinner as loading_indicator
-from components.ui_kit import crm_card, crm_metric, crm_badge, crm_loading, crm_alert
+from components.ui import breadcrumb, metric_card, card, badge, loading_indicator
 from utils.helpers import show_warning, show_error, show_success, show_info, format_phone_number, format_dni, get_current_datetime, format_datetime, truncate_text, is_valid_email, safe_float_conversion, safe_int_conversion, get_status_badge, format_currency, get_breadcrumb_icon
 
 # Utils
-from utils.styles import get_main_styles_v3
+from utils.styles import get_main_styles_v2, get_loading_spinner, loading_indicator
 from utils.data_manager import safe_get_sheet_data, safe_normalize, update_sheet_data, batch_update_sheet
 from utils.api_manager import api_manager, init_api_session_state
 from utils.pdf_utils import agregar_pie_pdf
 from utils.date_utils import parse_fecha, es_fecha_valida, format_fecha, ahora_argentina
 from utils.permissions import has_permission
-
-# --------------------------
-# CONEXIÓN CON GOOGLE SHEETS
-# --------------------------
-@st.cache_resource(ttl=3600)
-def init_google_sheets():
-    """Conexión optimizada a Google Sheets con retry automático"""
-
-    @retry(wait=wait_exponential(multiplier=1, min=4, max=10), stop=stop_after_attempt(3))
-    def _connect():
-        creds = service_account.Credentials.from_service_account_info(
-            {
-                **st.secrets["gcp_service_account"],
-                "private_key": st.secrets["gcp_service_account"]["private_key"].replace("\\n", "\n"),
-            },
-            scopes=[
-                "https://www.googleapis.com/auth/spreadsheets",
-                "https://www.googleapis.com/auth/drive",
-            ],
-        )
-        client = gspread.authorize(creds)
-
-        # Hoja de notificaciones
-        sheet_notifications = client.open_by_key(SHEET_ID).worksheet(WORKSHEET_NOTIFICACIONES)
-        init_notification_manager(sheet_notifications)
-
-        # Hoja de logs (crear si no existe)
-        try:
-            sheet_logs = client.open_by_key(SHEET_ID).worksheet("Logs")
-        except Exception:
-            try:
-                spreadsheet = client.open_by_key(SHEET_ID)
-                sheet_logs = spreadsheet.add_worksheet(title="Logs", rows=1000, cols=10)
-                sheet_logs.append_row(
-                    ["timestamp", "usuario", "nivel", "modulo", "accion", "detalles", "ip_address"]
-                )
-            except Exception as e:
-                st.error(f"Error al crear hoja de Logs: {str(e)}")
-                sheet_logs = None
-
-        return (
-            client.open_by_key(SHEET_ID).worksheet(WORKSHEET_RECLAMOS),
-            client.open_by_key(SHEET_ID).worksheet(WORKSHEET_CLIENTES),
-            client.open_by_key(SHEET_ID).worksheet(WORKSHEET_USUARIOS),
-            sheet_notifications,
-            sheet_logs,
-        )
-
-    try:
-        return _connect()
-    except Exception as e:
-        st.error(f"Error de conexión: {str(e)}")
-        st.stop()
-
-# Al inicio de app.py, después de los imports
-def load_tailwind():
-    return """
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        primary: {
-                            50: '#eff6ff',
-                            100: 'var(--color-primary-100)',
-                            200: 'var(--color-primary-200)',
-                            300: 'var(--color-primary-300)',
-                            400: 'var(--color-primary-400)',
-                            500: 'var(--color-primary-500)',
-                            600: 'var(--color-primary-600)',
-                            700: 'var(--color-primary-700)',
-                            800: 'var(--color-primary-800)',
-                            900: 'var(--color-primary-900)'
-                        },
-                        success: {
-                            50: 'var(--color-success-50)',
-                            100: 'var(--color-success-100)',
-                            200: 'var(--color-success-200)',
-                            300: 'var(--color-success-300)',
-                            400: 'var(--color-success-400)',
-                            500: 'var(--color-success-500)',
-                            600: 'var(--color-success-600)',
-                            700: 'var(--color-success-700)',
-                            800: 'var(--color-success-800)',
-                            900: 'var(--color-success-900)'
-                        },
-                        warning: {
-                            50: 'var(--color-warning-50)',
-                            100: 'var(--color-warning-100)',
-                            200: 'var(--color-warning-200)',
-                            300: 'var(--color-warning-300)',
-                            400: 'var(--color-warning-400)',
-                            500: 'var(--color-warning-500)',
-                            600: 'var(--color-warning-600)',
-                            700: 'var(--color-warning-700)',
-                            800: 'var(--color-warning-800)',
-                            900: 'var(--color-warning-900)'
-                        },
-                        danger: {
-                            50: 'var(--color-danger-50)',
-                            100: 'var(--color-danger-100)',
-                            200: 'var(--color-danger-200)',
-                            300: 'var(--color-danger-300)',
-                            400: 'var(--color-danger-400)',
-                            500: 'var(--color-danger-500)',
-                            600: 'var(--color-danger-600)',
-                            700: 'var(--color-danger-700)',
-                            800: 'var(--color-danger-800)',
-                            900: 'var(--color-danger-900)'
-                        },
-                        gray: {
-                            50: 'var(--color-gray-50)',
-                            100: 'var(--color-gray-100)',
-                            200: 'var(--color-gray-200)',
-                            300: 'var(--color-gray-300)',
-                            400: 'var(--color-gray-400)',
-                            500: 'var(--color-gray-500)',
-                            600: 'var(--color-gray-600)',
-                            700: 'var(--color-gray-700)',
-                            800: 'var(--color-gray-800)',
-                            900: 'var(--color-gray-900)'
-                        }
-                    },
-                    borderRadius: {
-                        sm: 'var(--radius-sm)',
-                        md: 'var(--radius-md)',
-                        lg: 'var(--radius-lg)',
-                        xl: 'var(--radius-xl)',
-                        '2xl': 'var(--radius-2xl)'
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
-                        mono: ['SF Mono', 'Monaco', 'monospace']
-                    }
-                }
-            }
-        }
-    </script>
-    """
 
 # CONFIGURACIÓN DE PÁGINA
 st.set_page_config(
@@ -218,73 +75,6 @@ st.set_page_config(
         'About': "Sistema profesional de gestión de reclamos - Fusion CRM v2.3"
     }
 )
-
-# ✅ INICIALIZAR MODO OSCURO MUY AL PRINCIPIO
-if 'modo_oscuro' not in st.session_state:
-    st.session_state.modo_oscuro = False
-
-# ✅ INICIALIZAR AUTH SI NO EXISTE
-if 'auth' not in st.session_state:
-    st.session_state.auth = {
-        'logged_in': False,
-        'user_info': {}
-    }
-
-# Aplicar los estilos mejorados (SIEMPRE, incluso antes del login)
-st.markdown(load_tailwind(), unsafe_allow_html=True)
-st.markdown(get_main_styles_v3(dark_mode=st.session_state.modo_oscuro), unsafe_allow_html=True)
-
-# Añadir clases de Tailwind al body
-st.markdown(f"""
-<script>
-// Aplicar clase dark si está en modo oscuro
-if (document.body.classList.contains('stApp')) {{
-    document.body.classList.add('bg-gray-50');
-    if ({'true' if st.session_state.modo_oscuro else 'false'}) {{
-        document.body.classList.add('dark');
-        document.body.classList.remove('bg-gray-50');
-        document.body.style.backgroundColor = 'var(--bg-primary)';
-    }}
-}}
-</script>
-""", unsafe_allow_html=True)
-
-# --- PRIMERO VERIFICAR AUTENTICACIÓN SIN CARGAR DATOS ---
-if not check_authentication():
-    from components.auth import init_auth_session
-    init_auth_session()
-
-    # ✅ conectar solo la hoja de usuarios antes del login
-    @st.cache_resource(ttl=3600)
-    def init_usuarios_sheet():
-        creds = service_account.Credentials.from_service_account_info(
-            {**st.secrets["gcp_service_account"], "private_key": st.secrets["gcp_service_account"]["private_key"].replace("\\n", "\n")},
-            scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-        )
-        client = gspread.authorize(creds)
-        return client.open_by_key(SHEET_ID).worksheet(WORKSHEET_USUARIOS)
-
-    sheet_usuarios = init_usuarios_sheet()
-
-    # ✅ ahora sí pasamos la hoja correcta
-    render_login(sheet_usuarios)
-    st.stop()
-
-# --- SOLO SI ESTÁ AUTENTICADO CONTINUAR CON LA CARGA DE DATOS ---
-loading_placeholder = st.empty()
-loading_placeholder.markdown(loading_indicator(), unsafe_allow_html=True)
-
-try:
-    # ✅ ACTUALIZAR: Recibir la hoja de logs
-    sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications, sheet_logs = init_google_sheets()
-    if not all([sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications]):
-        st.stop()
-finally:
-    loading_placeholder.empty()
-
-# ✅ Datos del usuario actual
-user_info = st.session_state.auth.get('user_info', {})
-user_role = user_info.get('rol', '')
 
 # --------------------------
 # FUNCIONES AUXILIARES OPTIMIZADAS
@@ -378,7 +168,7 @@ def migrar_uuids_existentes(sheet_reclamos, sheet_clientes):
     """Genera UUIDs para registros existentes que no los tengan"""
     try:
         if not sheet_reclamos or not sheet_clientes:
-            st.error("No se pudo conectar to las hojas de cálculo")
+            st.error("No se pudo conectar a las hojas de cálculo")
             return False
 
         updates_reclamos = []
@@ -482,81 +272,59 @@ def migrar_uuids_existentes(sheet_reclamos, sheet_clientes):
             st.exception(e)
         return False
 
-def precache_all_data(sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications, sheet_logs):
-    """Precargar datos de todas las hojas"""
+# --------------------------
+# CONEXIÓN CON GOOGLE SHEETS
+# --------------------------
+@st.cache_resource(ttl=3600)
+def init_google_sheets():
+    """Conexión optimizada a Google Sheets con retry automático"""
+    @retry(wait=wait_exponential(multiplier=1, min=4, max=10), stop=stop_after_attempt(3))
+    def _connect():
+        creds = service_account.Credentials.from_service_account_info(
+            {**st.secrets["gcp_service_account"], "private_key": st.secrets["gcp_service_account"]["private_key"].replace("\\n", "\n")},
+            scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        )
+        client = gspread.authorize(creds)
+        sheet_notifications = client.open_by_key(SHEET_ID).worksheet(WORKSHEET_NOTIFICACIONES)
+        init_notification_manager(sheet_notifications)
+        return (
+            client.open_by_key(SHEET_ID).worksheet(WORKSHEET_RECLAMOS),
+            client.open_by_key(SHEET_ID).worksheet(WORKSHEET_CLIENTES),
+            client.open_by_key(SHEET_ID).worksheet(WORKSHEET_USUARIOS),
+            sheet_notifications
+        )
+    try:
+        return _connect()
+    except Exception as e:
+        st.error(f"Error de conexión: {str(e)}")
+        st.stop()
+
+def precache_all_data(sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications):
     _ = safe_get_sheet_data(sheet_reclamos, COLUMNAS_RECLAMOS)
     _ = safe_get_sheet_data(sheet_clientes, COLUMNAS_CLIENTES)
     _ = safe_get_sheet_data(sheet_usuarios, COLUMNAS_USUARIOS)
     _ = safe_get_sheet_data(sheet_notifications, COLUMNAS_NOTIFICACIONES)
 
-    if sheet_logs:
-        try:
-            _ = safe_get_sheet_data(
-                sheet_logs,
-                ["timestamp", "usuario", "nivel", "modulo", "accion", "detalles", "ip_address"],
-            )
-        except Exception as e:
-            st.warning(f"Advertencia al cargar logs: {str(e)}")
-
-# ✅ ACTUALIZAR: Pasar la hoja de logs al precache
-precache_all_data(sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications, sheet_logs)
-
-# --------------------------
-# LOGIN
-# --------------------------
-if not check_authentication():
-    # Inicializar auth session
-    from components.auth import init_auth_session
-    init_auth_session()
-
-    # Conectar solo la hoja de usuarios para login
-    @st.cache_resource(ttl=3600)
-    def init_usuarios_sheet():
-        creds = service_account.Credentials.from_service_account_info(
-            {
-                **st.secrets["gcp_service_account"],
-                "private_key": st.secrets["gcp_service_account"]["private_key"].replace("\\n", "\n"),
-            },
-            scopes=[
-                "https://www.googleapis.com/auth/spreadsheets",
-                "https://www.googleapis.com/auth/drive",
-            ],
-        )
-        client = gspread.authorize(creds)
-        return client.open_by_key(SHEET_ID).worksheet(WORKSHEET_USUARIOS)
-
-    sheet_usuarios = init_usuarios_sheet()
-    render_login(sheet_usuarios)
-    st.stop()
-
-# --------------------------
-# CARGA DE DATOS SI ESTÁ LOGUEADO
-# --------------------------
 loading_placeholder = st.empty()
-loading_placeholder.markdown(loading_indicator(), unsafe_allow_html=True)
-
+loading_placeholder.markdown(get_loading_spinner(), unsafe_allow_html=True)
 try:
-    sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications, sheet_logs = init_google_sheets()
+    sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications = init_google_sheets()
     if not all([sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications]):
         st.stop()
 finally:
     loading_placeholder.empty()
 
-# Usuario actual
-user_info = st.session_state.auth.get("user_info", {})
-user_role = user_info.get("rol", "")
+if not check_authentication():
+    render_login(sheet_usuarios)
+    st.stop()
+    
+# ✅ Datos del usuario actual
+user_info = st.session_state.auth.get('user_info', {})
+user_role = user_info.get('rol', '')
 
-# Precargar
-precache_all_data(sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications, sheet_logs)
+precache_all_data(sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications)
 
-# Guardar hoja de logs
-st.session_state.sheet_logs = sheet_logs
-
-# DataFrames principales
-df_reclamos = safe_get_sheet_data(sheet_reclamos, COLUMNAS_RECLAMOS)
-df_clientes = safe_get_sheet_data(sheet_clientes, COLUMNAS_CLIENTES)
-df_usuarios = safe_get_sheet_data(sheet_usuarios, COLUMNAS_USUARIOS)
-
+df_reclamos, df_clientes, df_usuarios = safe_get_sheet_data(sheet_reclamos, COLUMNAS_RECLAMOS), safe_get_sheet_data(sheet_clientes, COLUMNAS_CLIENTES), safe_get_sheet_data(sheet_usuarios, COLUMNAS_USUARIOS)
 st.session_state.df_reclamos = df_reclamos
 st.session_state.df_clientes = df_clientes
 st.session_state.df_usuarios = df_usuarios
@@ -575,22 +343,90 @@ if is_mobile():
 else:
     opcion = st.session_state.get('current_page', 'Inicio')
 
+# 🔹 Inicializar modo oscuro con preferencia persistida
+init_modo_oscuro()
+
+st.markdown(get_main_styles_v2(dark_mode=st.session_state.modo_oscuro), unsafe_allow_html=True)
+
 # --------------------------
-# SIDEBAR DE NAVEGACIÓN
+# SIDEBAR
 # --------------------------
 with st.sidebar:
-    # Renderizar navegación
+    # Header del sidebar
+    st.markdown("""
+    <div style="text-align: center; padding: 1rem 0; border-bottom: 1px solid var(--border-color); margin-bottom: 1rem;">
+        <h2 style="margin: 0; color: var(--primary-color);">📋 Fusion CRM</h2>
+        <p style="color: var(--text-secondary); margin: 0.25rem 0 0 0; font-size: 0.9rem;">
+            Panel de Control
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Información de usuario
+    render_user_info()
+
+    # Selector de modo oscuro
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        st.markdown("<div style='font-size: 1.5rem;'>🌙</div>", unsafe_allow_html=True)
+    with col2:
+        st.checkbox("Modo oscuro", value=st.session_state.modo_oscuro,
+                    key=MODO_OSCURO_KEY, on_change=_on_toggle_modo_oscuro,
+                    help="Cambiar entre tema claro y oscuro", label_visibility="visible")
+    
+    # Notificaciones
+    if st.session_state.auth.get("logged_in", False):
+        render_notification_bell()
+    
+    st.markdown("---")
+    
+    # Navegación profesional
     render_sidebar_navigation()
     
-    # Info del usuario si está logueado
-    if st.session_state.auth.get('logged_in', False):
-        render_user_info()
+    # Herramientas de administrador (solo visible para admins)
+    if user_role == 'admin':
+        st.markdown("---")
+        st.markdown("**🔧 Herramientas Admin**")
+        if st.button("🆔 Generar UUIDs para registros", 
+                    help="Genera IDs únicos para registros existentes que no los tengan",
+                    disabled=st.session_state.get('uuid_migration_in_progress', False),
+                    use_container_width=True):
+            st.session_state.uuid_migration_in_progress = True
+            with st.spinner("Migrando UUIDs..."):
+                if migrar_uuids_existentes(sheet_reclamos, sheet_clientes):
+                    st.rerun()
+            st.session_state.uuid_migration_in_progress = False
     
-    # Campana de notificaciones si existe
-    try:
-        render_notification_bell()
-    except:
-        pass  # Si no existe el componente, continuar
+    # En el sidebar, mejora el footer:
+    st.markdown(
+        f"""
+        <div style="margin-top: 2rem; padding: 1rem; background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
+            <div style="text-align: center; margin-bottom: 1rem;">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">⚡</div>
+                <p style="margin:0; font-size: 0.9rem; color: var(--text-secondary);"><strong>Versión:</strong> 2.3.0</p>
+                <p style="margin:0; font-size: 0.8rem; color: var(--text-muted);">Última actualización</p>
+                <p style="margin:0; font-size: 0.9rem; color: var(--primary-color); font-weight: 600;">
+                    {ahora_argentina().strftime('%d/%m/%Y %H:%M')}
+                </p>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        f"""
+        <hr style="border:1px solid var(--border-light); margin:1rem 0;" />
+        <div style="text-align:center; font-size:0.8rem; color: var(--text-muted);">
+            Desarrollado con 💜<br>por  
+            <a href="https://instagram.com/mellamansebax" target="_blank" 
+               style="color: var(--primary-color); text-decoration:none; font-weight:600;">
+               Sebastián Andrés
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # --------------------------
 # INICIALIZACIÓN
@@ -626,7 +462,7 @@ def cargar_datos():
     """Carga datos de Google Sheets con manejo robusto de nombres y fechas."""
     try:
         loading_placeholder = st.empty()
-        loading_placeholder.markdown(loading_indicator(), unsafe_allow_html=True)
+        loading_placeholder.markdown(get_loading_spinner(), unsafe_allow_html=True)
 
         df_reclamos = safe_get_sheet_data(sheet_reclamos, COLUMNAS_RECLAMOS)
         df_clientes = safe_get_sheet_data(sheet_clientes, COLUMNAS_CLIENTES)
@@ -717,36 +553,45 @@ st.session_state.df_usuarios = df_usuarios
 # --------------------------
 
 st.markdown("""
-<div class="text-center py-10 bg-gradient-to-r from-blue-50 to-indigo-100 dark:from-gray-800 dark:to-gray-900 rounded-2xl mb-8 border border-gray-200 dark:border-gray-700 shadow-lg">
-    <h1 class="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
+<div style="text-align: center; padding: 2.5rem 0; background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%); border-radius: var(--radius-xl); margin: 2rem 0; border: 1px solid var(--border-color); box-shadow: var(--shadow-lg);">
+    <h1 style="margin: 0; background: linear-gradient(135deg, #66D9EF 0%, #F92672 30%, #A6E22E 70%, #AE81FF 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 2.8rem;">
         Fusion Reclamos CRM
     </h1>
-    <div class="inline-block bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium">
-        Sistema profesional en gestión de Reclamos
+    <div style="margin-top: 1rem;">
+        <span style="background: var(--primary-color); color: #272822; padding: 0.25rem 1rem; border-radius: var(--radius-md); font-size: 0.9rem; font-weight: 500;">
+            Sistema profesional en gestión de Reclamos
+        </span>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 # Dashboard de métricas
-try:
-    render_metrics_dashboard(df_reclamos, is_mobile=is_mobile())
-except Exception as e:
-    st.error(f"❌ Error al mostrar métricas: {str(e)}")
-    if DEBUG_MODE:
-        st.exception(e)
+render_metrics_dashboard(df_reclamos, is_mobile=is_mobile())
 
-# BREADCRUMB DE NAVEGACIÓN moderno
+# BREADCRUMB DE NAVEGACIÓN mejorado
 st.markdown(f"""
-<div class="flex items-center justify-between bg-white dark:bg-gray-800 rounded-xl p-4 mb-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-    <div class="flex items-center space-x-3">
-        <span class="text-xl text-gray-500">📋</span>
-        <span class="text-gray-500">Navegación:</span>
-        <span class="flex items-center space-x-2 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-700">
-            <span class="text-xl text-blue-600">{get_breadcrumb_icon(opcion)}</span>
-            <span class="font-semibold text-blue-600">{opcion}</span>
-        </span>
-    </div>
-    <span class="text-sm text-gray-400">
+<div style="
+    display: flex; 
+    align-items: center; 
+    gap: 0.5rem; 
+    margin: 2rem 0 1.5rem 0; 
+    padding: 1.25rem; 
+    background: var(--bg-card); 
+    border-radius: var(--radius-xl); 
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    font-size: 0.95rem;
+">
+    <span style="color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+        <span style="font-size: 1.2rem;">📋</span>
+        <span>Navegación:</span>
+    </span>
+    <span style="color: var(--primary-color); display: flex; align-items: center; gap: 0.5rem; font-weight: 600;">
+        <span style="font-size: 1.1rem;">{get_breadcrumb_icon(opcion)}</span>
+        <span>{opcion}</span>
+    </span>
+    <div style="flex: 1;"></div>
+    <span style="color: var(--text-muted); font-size: 0.85rem;">
         {ahora_argentina().strftime('%d/%m/%Y %H:%M')}
     </span>
 </div>
@@ -816,43 +661,23 @@ COMPONENTES = {
             "sheet_clientes": sheet_clientes,
             "user": user_info
         }
-    },
-    "Administración": {
-        "render": render_panel_administracion,
-        "permiso": "admin",  # Solo admins pueden acceder
-        "params": {
-            "df_usuarios": df_usuarios,
-            "sheet_usuarios": sheet_usuarios,
-            "user_info": user_info
-        }
     }
 }
 
 # Renderizar componente seleccionado
-# ✅ VERIFICAR QUE EL USUARIO ESTÉ AUTENTICADO ANTES DE USAR has_permission
-if st.session_state.auth.get('logged_in', False) and opcion in COMPONENTES and has_permission(COMPONENTES[opcion]["permiso"]):
+if opcion in COMPONENTES and has_permission(COMPONENTES[opcion]["permiso"]):
     with st.container():
         st.markdown("---")
-        try:
-            resultado = COMPONENTES[opcion]["render"](**COMPONENTES[opcion]["params"])
-            
-            if resultado and resultado.get('needs_refresh'):
-                st.cache_data.clear()
-                time.sleep(1)
-                st.rerun()
-        except Exception as e:
-            st.error(f"❌ Error al cargar el componente {opcion}: {str(e)}")
-            if DEBUG_MODE:
-                st.exception(e)
+        resultado = COMPONENTES[opcion]["render"](**COMPONENTES[opcion]["params"])
+        
+        if resultado and resultado.get('needs_refresh'):
+            st.cache_data.clear()
+            time.sleep(1)
+            st.rerun()
 
 # --------------------------
 # RESUMEN DE JORNADA OPTIMIZADO
 # --------------------------
 with st.container():
-    try:
-        render_resumen_jornada(df_reclamos)
-    except Exception as e:
-        st.error(f"❌ Error al mostrar resumen de jornada: {str(e)}")
-        if DEBUG_MODE:
-            st.exception(e)
+    render_resumen_jornada(df_reclamos)
     st.markdown('</div>', unsafe_allow_html=True)

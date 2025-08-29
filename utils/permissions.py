@@ -1,25 +1,16 @@
-# utils/permissions.py - ASEGURARSE QUE TENGA:
+"""Utilidades de permisos para evitar importación circular"""
 
-import streamlit as st
-from config.settings import PERMISOS_POR_ROL
-
-def has_permission(permiso_requerido):
-    """Verifica si el usuario actual tiene un permiso específico"""
-    # Verificar si auth existe en session_state
-    if 'auth' not in st.session_state:
-        return False
-        
+def has_permission(permiso):
+    """Verifica permisos del usuario"""
+    import streamlit as st
+    
     user_info = st.session_state.auth.get('user_info', {})
-    rol = user_info.get('rol', '')
+    user_role = user_info.get('rol', '')
     
-    if not rol:
-        return False
+    permisos = {
+        'admin': ['inicio', 'reclamos_cargados', 'gestion_clientes', 'imprimir_reclamos', 'seguimiento_tecnico', 'cierre_reclamos'],
+        'tecnico': ['inicio', 'reclamos_cargados', 'seguimiento_tecnico', 'cierre_reclamos'],
+        'usuario': ['inicio', 'reclamos_cargados', 'imprimir_reclamos']
+    }
     
-    # Si es admin, tiene todos los permisos
-    if rol == 'admin':
-        return True
-    
-    permisos = PERMISOS_POR_ROL.get(rol, {}).get('permisos', [])
-    
-    # Verificar si tiene el permiso específico o todos los permisos (*)
-    return '*' in permisos or permiso_requerido in permisos
+    return permiso in permisos.get(user_role, [])

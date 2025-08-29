@@ -1,13 +1,13 @@
 """
-Componente de navegación profesional con TailwindCSS
-Versión 4.0 - Diseño CRM moderno
+Componente de navegación profesional con iconos y estados activos
+Versión 3.0 - Diseño CRM profesional
 """
-
 import streamlit as st
+from utils.styles import get_main_styles_v2, get_loading_spinner, loading_indicator
 from utils.permissions import has_permission
 
 def render_sidebar_navigation():
-    """Renderiza la navegación lateral profesional con diseño moderno"""
+    """Renderiza la navegación lateral profesional con iconos"""
     
     menu_items = [
         {"icon": "🏠", "label": "Inicio", "key": "Inicio", "permiso": "inicio"},
@@ -18,27 +18,13 @@ def render_sidebar_navigation():
         {"icon": "✅", "label": "Cierre de Reclamos", "key": "Cierre de Reclamos", "permiso": "cierre_reclamos"}
     ]
     
-    # AGREGAR OPCIÓN DE ADMINISTRACIÓN SI EL USUARIO ES ADMIN
-    if st.session_state.auth.get('user_info', {}).get('rol') == 'admin':
-        menu_items.append(
-            {"icon": "⚙️", "label": "Administración", "key": "Administración", "permiso": "admin"}
-        )
-    
     # Header de navegación
     st.sidebar.markdown("""
-    <div style="padding: 1.25rem 1rem 1rem 1rem; border-bottom: 1px solid #e5e7eb; margin-bottom: 0.5rem;">
-        <h3 style="margin: 0; color: #3b82f6; display: flex; align-items: center; gap: 0.5rem; font-size: 1.1rem; font-weight: 600;">
-            <span style="font-size: 1.3rem;">🧭</span> Navegación
+    <div style="padding: 1rem 0; border-bottom: 1px solid var(--border-color); margin-bottom: 1rem;">
+        <h3 style="margin: 0; color: var(--primary-color); display: flex; align-items: center; gap: 0.5rem;">
+            <span>🧭</span> Navegación
         </h3>
     </div>
-    <style>
-    .dark .sidebar-nav-item {
-        border-color: #374151 !important;
-    }
-    .dark .sidebar-nav-item:hover {
-        background: #374151 !important;
-    }
-    </style>
     """, unsafe_allow_html=True)
     
     # Botones de navegación
@@ -48,73 +34,67 @@ def render_sidebar_navigation():
             
         is_active = st.session_state.get('current_page') == item["key"]
         
-        # Estilos diferentes para estado activo/inactivo
-        if is_active:
-            st.sidebar.markdown(f"""
-            <div style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); 
-                     color: white; padding: 0.75rem 1rem; margin: 0.25rem 0; border-radius: 0.5rem;
-                     display: flex; align-items: center; gap: 0.75rem; font-weight: 500; cursor: pointer;">
-                <span style="font-size: 1.2rem;">{item['icon']}</span>
-                <span>{item['label']}</span>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            if st.sidebar.button(
-                f"{item['icon']} {item['label']}", 
-                key=f"nav_{item['key'].replace(' ', '_').lower()}",
-                use_container_width=True,
-                help=f"Ir a {item['label']}"
-            ):
-                st.session_state.current_page = item["key"]
-                st.rerun()
+        button_style = """
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%) !important;
+            color: #272822 !important;
+            font-weight: 600 !important;
+            border: 1px solid var(--primary-color) !important;
+        """ if is_active else """
+            background: transparent !important;
+            color: var(--text-primary) !important;
+            border: 1px solid var(--border-color) !important;
+        """
+        
+        if st.sidebar.button(
+            f"{item['icon']} {item['label']}", 
+            key=f"nav_{item['key'].replace(' ', '_').lower()}",
+            use_container_width=True,
+            help=f"Ir a {item['label']}"
+        ):
+            st.session_state.current_page = item["key"]
+            st.rerun()
     
     st.sidebar.markdown("---")
 
 def render_user_info():
-    """Renderiza información del usuario con diseño moderno"""
+    """Renderiza información del usuario logueado con diseño mejorado"""
     if st.session_state.auth.get("logged_in", False):
         user_info = st.session_state.auth.get('user_info', {})
         
-        role_config = {
-            'admin': {'icon': '👑', 'color': '#f59e0b'},
-            'oficina': {'icon': '💼', 'color': '#3b82f6'},
-            'tecnico': {'icon': '🔧', 'color': '#10b981'},
-            'supervisor': {'icon': '👔', 'color': '#8b5cf6'}
-        }
-        
-        config = role_config.get(user_info.get('rol', '').lower(), {'icon': '👤', 'color': '#6b7280'})
-        
-        st.sidebar.markdown(f"""
-        <div style="padding: 1.25rem 1rem; background: #f8fafc; border-radius: 0.75rem; border: 1px solid #e2e8f0; margin: 1rem 0;">
+        st.sidebar.markdown("""
+        <div style="padding: 1rem; background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--border-color); margin: 1rem 0;">
             <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">
-                <div style="font-size: 2rem; color: {config['color']};">{config['icon']}</div>
+                <div style="font-size: 1.5rem;">👋</div>
                 <div>
-                    <div style="font-weight: 600; color: #1e293b; font-size: 1rem;">Bienvenido</div>
-                    <div style="color: {config['color']}; font-size: 0.9rem; font-weight: 500;">{user_info.get('nombre', 'Usuario')}</div>
+                    <div style="font-weight: 600; color: var(--text-primary);">Bienvenido</div>
+                    <div style="color: var(--primary-color); font-size: 0.9rem;">{nombre}</div>
                 </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <span style="background: {config['color']}15; color: {config['color']}; 
-                      padding: 0.25rem 0.5rem; border-radius: 0.375rem; font-size: 0.75rem; 
-                      font-weight: 500; border: 1px solid {config['color']}30;">
-                    {user_info.get('rol', 'Usuario')}
-                </span>
+            <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); font-size: 0.8rem;">
+                <span style="background: var(--primary-color); color: #272822; padding: 0.1rem 0.5rem; border-radius: var(--radius-md); font-weight: 500;">{rol}</span>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """.format(
+            nombre=user_info.get('nombre', 'Usuario'),
+            rol=user_info.get('rol', 'Usuario')
+        ), unsafe_allow_html=True)
+        
+        if st.sidebar.button("🚪 Cerrar sesión", use_container_width=True):
+            st.session_state.auth["logged_in"] = False
+            st.session_state.auth["user_info"] = {}
+            st.rerun()
 
+# Función original mantenida para compatibilidad
 def render_navigation():
     """Renderiza el menú de navegación horizontal (compatibilidad)"""
-    
     st.markdown("""
-    <div style="margin: 1.5rem 0; padding: 1.25rem; background: #f8fafc; border-radius: 0.75rem; border: 1px solid #e2e8f0;">
-        <h3 style="margin: 0; color: #1e293b; display: flex; align-items: center; gap: 0.5rem; font-size: 1.1rem; font-weight: 600;">
-            <span style="font-size: 1.3rem;">🧭</span> Navegación Principal
+    <div style="margin: 1.5rem 0; padding: 1rem; background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
+        <h3 style="margin: 0; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            <span>🧭</span> Navegación
         </h3>
     </div>
     """, unsafe_allow_html=True)
     
-    # Opciones de navegación con emojis
     opciones = [
         "🏠 Inicio", 
         "📊 Reclamos cargados", 
@@ -124,49 +104,13 @@ def render_navigation():
         "✅ Cierre de Reclamos"
     ]
     
-    # Crear columnas para la navegación horizontal
-    cols = st.columns(len(opciones))
+    # Crear navegación con iconos
+    opcion = st.radio(
+        "Selecciona una sección:",
+        opciones,
+        horizontal=True,
+        label_visibility="collapsed"
+    )
     
-    for i, opcion in enumerate(opciones):
-        with cols[i]:
-            if st.button(opcion.split(" ", 1)[0], 
-                        help=opcion,
-                        use_container_width=True):
-                st.session_state.current_page = opcion.split(" ", 1)[1]
-                st.rerun()
-    
-    return st.session_state.get('current_page', 'Inicio')
-
-def render_mobile_navigation():
-    """Navegación optimizada para dispositivos móviles"""
-    
-    menu_items = [
-        {"icon": "🏠", "label": "Inicio", "key": "Inicio"},
-        {"icon": "📊", "label": "Reclamos", "key": "Reclamos cargados"},
-        {"icon": "👥", "label": "Clientes", "key": "Gestión de clientes"},
-        {"icon": "🖨️", "label": "Imprimir", "key": "Imprimir reclamos"},
-        {"icon": "🔧", "label": "Técnico", "key": "Seguimiento técnico"},
-        {"icon": "✅", "label": "Cierre", "key": "Cierre de Reclamos"}
-    ]
-    
-    # Crear navegación tipo bottom bar para móviles
-    st.markdown("""
-    <div style="position: fixed; bottom: 0; left: 0; right: 0; background: white; 
-                border-top: 1px solid #e5e7eb; padding: 0.5rem; z-index: 1000;
-                display: flex; justify-content: space-around;">
-    """, unsafe_allow_html=True)
-    
-    for item in menu_items:
-        is_active = st.session_state.get('current_page') == item["key"]
-        
-        st.markdown(f"""
-        <div style="text-align: center; padding: 0.5rem; { 'color: #3b82f6;' if is_active else 'color: #6b7280;' }">
-            <div style="font-size: 1.5rem;">{item['icon']}</div>
-            <div style="font-size: 0.75rem; margin-top: 0.25rem;">{item['label']}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Espacio para evitar que el contenido quede oculto
-    st.markdown("<div style='height: 80px;'></div>", unsafe_allow_html=True)
+    # Extraer solo el nombre sin emoji para compatibilidad
+    return opcion.split(" ", 1)[1] if " " in opcion else opcion

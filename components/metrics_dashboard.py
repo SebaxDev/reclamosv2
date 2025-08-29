@@ -1,104 +1,61 @@
 """
-Dashboard de métricas profesional con TailwindCSS
-Versión 4.0 - Diseño CRM moderno
+Componente del dashboard de métricas profesional
+Versión 3.0 - Diseño tipo CRM con tarjetas elegantes
 """
-
 import streamlit as st
 import pandas as pd
 from datetime import datetime
 
-def metric_card(value, label, icon="📊", trend=None, variant="primary"):
-    """Tarjeta de métrica moderna con TailwindCSS"""
+def metric_card(value, label, icon, trend=None, delta=None):
+    """Componente de tarjeta de métrica profesional"""
     
-    variant_config = {
-        "primary": {"bg": "bg-gradient-to-r from-blue-500 to-blue-600", "text": "text-white", "icon_bg": "bg-blue-600"},
-        "success": {"bg": "bg-gradient-to-r from-green-500 to-green-600", "text": "text-white", "icon_bg": "bg-green-600"},
-        "warning": {"bg": "bg-gradient-to-r from-yellow-500 to-yellow-600", "text": "text-gray-900", "icon_bg": "bg-yellow-600"},
-        "danger": {"bg": "bg-gradient-to-r from-red-500 to-red-600", "text": "text-white", "icon_bg": "bg-red-600"},
-        "neutral": {"bg": "bg-gradient-to-r from-gray-100 to-gray-200", "text": "text-gray-900", "icon_bg": "bg-gray-200"},
-        "info": {"bg": "bg-gradient-to-r from-blue-400 to-blue-500", "text": "text-white", "icon_bg": "bg-blue-500"}  # ✅ Añadido
-    }
-    
-    config = variant_config.get(variant, variant_config["primary"])
-    
-    trend_html = ""
-    if trend:
-        trend_color = "text-green-200" if trend.get('positive', True) else "text-red-200"
-        trend_icon = "↗" if trend.get('positive', True) else "↘"
-        trend_html = f"""
-        <div class="flex items-center {trend_color} text-sm mt-1">
-            <span class="mr-1">{trend_icon}</span>
-            <span>{trend['value']}</span>
-        </div>
-        """
+    trend_html = f"""
+    <div style='display: flex; align-items: center; justify-content: center; gap: 0.25rem; font-size: 0.8rem; margin-top: 0.25rem;'>
+        <span style='color: {"var(--success-color)" if (delta or 0) >= 0 else "var(--danger-color)"}'>
+            {"↗️" if (delta or 0) >= 0 else "↘️"} {abs(delta or 0)}%
+        </span>
+    </div>
+    """ if trend and delta is not None else ""
     
     return f"""
-    <div class="{config['bg']} {config['text']} rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm opacity-90 font-medium">{label}</p>
-                <p class="text-2xl font-bold mt-1">{value}</p>
-                {trend_html}
-            </div>
-            <div class="{config['icon_bg']} rounded-full p-3">
-                <span class="text-xl">{icon}</span>
-            </div>
-        </div>
+    <div class='card' style='text-align: center; padding: 1.5rem 1rem; margin: 0;'>
+        <div style='font-size: 2.5rem; margin-bottom: 0.5rem; color: var(--primary-color);'>{icon}</div>
+        <div style='font-size: 2rem; font-weight: 700; color: var(--text-primary); line-height: 1;'>{value}</div>
+        <div style='color: var(--text-secondary); font-size: 0.9rem; margin: 0.5rem 0;'>{label}</div>
+        {trend_html}
     </div>
     """
 
-def status_badge(status, count, description=""):
-    """Badge de estado moderno"""
-    
+def status_badge(status, count):
+    """Badge de estado para métricas"""
     status_config = {
-        "Pendiente": {"color": "yellow", "icon": "⏳"},
-        "En curso": {"color": "blue", "icon": "🔧"},
-        "Resuelto": {"color": "green", "icon": "✅"},
-        "Desconexión": {"color": "red", "icon": "🔌"},
-        "Cerrado": {"color": "gray", "icon": "🔒"}
+        "Pendiente": {"color": "var(--warning-color)", "icon": "⏳"},
+        "En curso": {"color": "var(--info-color)", "icon": "🔧"},
+        "Resuelto": {"color": "var(--success-color)", "icon": "✅"},
+        "Desconexión": {"color": "var(--danger-color)", "icon": "🔌"},
+        "Cerrado": {"color": "var(--text-muted)", "icon": "🔒"}
     }
     
-    config = status_config.get(status, {"color": "gray", "icon": "❓"})
-    color = config["color"]
-    
-    # ✅ CORREGIDO: Problema con comillas en f-strings
-    description_html = f'<p class="text-{color}-600 text-sm">{description}</p>' if description else ''
+    config = status_config.get(status, {"color": "var(--text-muted)", "icon": "❓"})
     
     return f"""
-    <div class="bg-{color}-50 border border-{color}-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <span class="text-{color}-600 text-xl">{config['icon']}</span>
-                <div>
-                    <p class="text-{color}-800 font-semibold">{status}</p>
-                    {description_html}
-                </div>
-            </div>
-            <span class="text-{color}-800 font-bold text-xl">{count}</span>
-        </div>
+    <div style='display: flex; align-items: center; justify-content: space-between; padding: 0.75rem; background: {config["color"]}15; border-radius: var(--radius-md); border: 1px solid {config["color"]}30; margin: 0.25rem 0;'>
+        <span style='display: flex; align-items: center; gap: 0.5rem;'>
+            <span style='color: {config["color"]};'>{config["icon"]}</span>
+            <span style='color: var(--text-primary);'>{status}</span>
+        </span>
+        <span style='font-weight: 600; color: {config["color"]};'>{count}</span>
     </div>
     """
 
 def render_metrics_dashboard(df_reclamos, is_mobile=False):
-    """Renderiza el dashboard de métricas moderno"""
+    """Renderiza el dashboard de métricas profesional"""
     try:
         if df_reclamos.empty:
-            st.markdown("""
-            <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-lg">
-                <div class="flex items-start">
-                    <span class="text-yellow-600 text-lg mr-3">⚠️</span>
-                    <p class="text-yellow-700">No hay datos de reclamos para mostrar</p>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.warning("No hay datos de reclamos para mostrar")
             return
 
         df_metricas = df_reclamos.copy()
-
-        # ✅ Verificar si existe la columna "Estado"
-        if "Estado" not in df_metricas.columns:
-            st.error("❌ La columna 'Estado' no existe en los datos")
-            return
 
         # Procesamiento de datos
         df_activos = df_metricas[df_metricas["Estado"].isin(["Pendiente", "En curso"])]
@@ -106,25 +63,20 @@ def render_metrics_dashboard(df_reclamos, is_mobile=False):
         pendientes = len(df_activos[df_activos["Estado"] == "Pendiente"])
         en_curso = len(df_activos[df_activos["Estado"] == "En curso"])
         resueltos = len(df_metricas[df_metricas["Estado"] == "Resuelto"])
+        desconexiones = df_metricas["Estado"].str.strip().str.lower().eq("desconexión").sum()
         
-        # ✅ Manejo seguro de desconexiones
-        try:
-            desconexiones = df_metricas["Estado"].str.strip().str.lower().eq("desconexión").sum()
-        except:
-            desconexiones = 0
-        
-        # Calcular porcentajes de forma segura
+        # Calcular porcentajes para tendencias
         total_reclamos = len(df_metricas)
         porcentaje_activos = (total_activos / total_reclamos * 100) if total_reclamos > 0 else 0
         porcentaje_resueltos = (resueltos / total_reclamos * 100) if total_reclamos > 0 else 0
 
         # Header del dashboard
         st.markdown("""
-        <div class="mb-8">
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-                <span class="mr-3">📈</span> Dashboard de Métricas
+        <div style="margin: 2rem 0 1.5rem 0;">
+            <h2 style="display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+                <span>📈</span> Dashboard de Métricas
             </h2>
-            <p class="text-gray-600 dark:text-gray-400 mt-1">
+            <p style="color: var(--text-secondary); margin: 0.5rem 0 0 0;">
                 Resumen general de la gestión de reclamos
             </p>
         </div>
@@ -132,83 +84,81 @@ def render_metrics_dashboard(df_reclamos, is_mobile=False):
 
         # Diseño responsive
         if is_mobile:
-            # Layout móvil (2 columnas)
-            cols = st.columns(2)
+            # Diseño para móviles (2 columnas)
+            col1, col2 = st.columns(2)
             
-            with cols[0]:
-                st.markdown(metric_card(total_activos, "Activos", "📄", {"value": "+12%", "positive": True}, "primary"), unsafe_allow_html=True)
-                st.markdown(metric_card(en_curso, "En Curso", "🔧", variant="info"), unsafe_allow_html=True)
+            with col1:
+                st.markdown(metric_card(total_activos, "Activos", "📄", delta=12), unsafe_allow_html=True)
+                st.markdown(metric_card(en_curso, "En Curso", "🔧"), unsafe_allow_html=True)
                 
-            with cols[1]:
-                st.markdown(metric_card(pendientes, "Pendientes", "⏳", {"value": "-5%", "positive": False}, "warning"), unsafe_allow_html=True)
-                st.markdown(metric_card(resueltos, "Resueltos", "✅", {"value": "+8%", "positive": True}, "success"), unsafe_allow_html=True)
+            with col2:
+                st.markdown(metric_card(pendientes, "Pendientes", "⏳", delta=-5), unsafe_allow_html=True)
+                st.markdown(metric_card(resueltos, "Resueltos", "✅", delta=8), unsafe_allow_html=True)
                 
             # Sección de estados
             st.markdown("""
-            <div class="mt-6">
-                <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">📊 Distribución por Estado</h4>
+            <div style="margin-top: 1.5rem;">
+                <h4 style="margin: 0 0 1rem 0; color: var(--text-primary);">📊 Distribución por Estado</h4>
             </div>
             """, unsafe_allow_html=True)
             
-            st.markdown(status_badge("Pendiente", pendientes, "Esperando atención"), unsafe_allow_html=True)
-            st.markdown(status_badge("En curso", en_curso, "En proceso"), unsafe_allow_html=True)
-            st.markdown(status_badge("Resuelto", resueltos, "Completados"), unsafe_allow_html=True)
+            st.markdown(status_badge("Pendiente", pendientes), unsafe_allow_html=True)
+            st.markdown(status_badge("En curso", en_curso), unsafe_allow_html=True)
+            st.markdown(status_badge("Resuelto", resueltos), unsafe_allow_html=True)
             if desconexiones > 0:
-                st.markdown(status_badge("Desconexión", desconexiones, "Servicio interrumpido"), unsafe_allow_html=True)
+                st.markdown(status_badge("Desconexión", desconexiones), unsafe_allow_html=True)
                 
         else:
-            # Layout desktop (4 columnas)
-            cols = st.columns(4)
+            # Diseño para desktop (4 columnas)
+            col1, col2, col3, col4 = st.columns(4)
             
-            with cols[0]:
-                st.markdown(metric_card(total_activos, "Activos", "📄", {"value": "+12%", "positive": True}, "primary"), unsafe_allow_html=True)
-            with cols[1]:
-                st.markdown(metric_card(pendientes, "Pendientes", "⏳", {"value": "-5%", "positive": False}, "warning"), unsafe_allow_html=True)
-            with cols[2]:
-                st.markdown(metric_card(en_curso, "En Curso", "🔧", variant="info"), unsafe_allow_html=True)
-            with cols[3]:
-                st.markdown(metric_card(resueltos, "Resuelto", "✅", {"value": "+8%", "positive": True}, "success"), unsafe_allow_html=True)
+            with col1:
+                st.markdown(metric_card(total_activos, "Reclamos Activos", "📄", delta=12), unsafe_allow_html=True)
+            with col2:
+                st.markdown(metric_card(pendientes, "Pendientes", "⏳", delta=-5), unsafe_allow_html=True)
+            with col3:
+                st.markdown(metric_card(en_curso, "En Curso", "🔧"), unsafe_allow_html=True)
+            with col4:
+                st.markdown(metric_card(resueltos, "Resueltos", "✅", delta=8), unsafe_allow_html=True)
             
             # Segunda fila de métricas
-            cols2 = st.columns(4)
+            col5, col6, col7, col8 = st.columns(4)
             
-            with cols2[0]:
-                st.markdown(metric_card(f"{porcentaje_activos:.1f}%", "Tasa Activos", "📊", variant="neutral"), unsafe_allow_html=True)
-            with cols2[1]:
-                st.markdown(metric_card(f"{porcentaje_resueltos:.1f}%", "Tasa Resolución", "🎯", variant="success"), unsafe_allow_html=True)
-            with cols2[2]:
-                st.markdown(metric_card(desconexiones, "Desconexiones", "🔌", variant="danger"), unsafe_allow_html=True)
-            with cols2[3]:
-                st.markdown(metric_card(total_reclamos, "Total", "📋", variant="neutral"), unsafe_allow_html=True)
+            with col5:
+                st.markdown(metric_card(f"{porcentaje_activos:.1f}%", "Tasa de Activos", "📊"), unsafe_allow_html=True)
+            with col6:
+                st.markdown(metric_card(f"{porcentaje_resueltos:.1f}%", "Tasa de Resolución", "🎯"), unsafe_allow_html=True)
+            with col7:
+                st.markdown(metric_card(desconexiones, "Desconexiones", "🔌"), unsafe_allow_html=True)
+            with col8:
+                st.markdown(metric_card(total_reclamos, "Total Reclamos", "📋"), unsafe_allow_html=True)
             
-            # Sección de estados
+            # Sección de estados en columnas
             st.markdown("""
-            <div class="mt-8">
-                <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">📊 Distribución por Estado</h4>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div style="margin: 2rem 0 1rem 0;">
+                <h4 style="margin: 0 0 1rem 0; color: var(--text-primary);">📊 Distribución por Estado</h4>
+            </div>
             """, unsafe_allow_html=True)
             
-            estado_cols = st.columns(4)
+            estado_col1, estado_col2, estado_col3, estado_col4 = st.columns(4)
             
-            with estado_cols[0]:
-                st.markdown(status_badge("Pendiente", pendientes, "Esperando atención"), unsafe_allow_html=True)
-            with estado_cols[1]:
-                st.markdown(status_badge("En curso", en_curso, "En proceso"), unsafe_allow_html=True)
-            with estado_cols[2]:
-                st.markdown(status_badge("Resuelto", resueltos, "Completados"), unsafe_allow_html=True)
-            with estado_cols[3]:
+            with estado_col1:
+                st.markdown(status_badge("Pendiente", pendientes), unsafe_allow_html=True)
+            with estado_col2:
+                st.markdown(status_badge("En curso", en_curso), unsafe_allow_html=True)
+            with estado_col3:
+                st.markdown(status_badge("Resuelto", resueltos), unsafe_allow_html=True)
+            with estado_col4:
                 if desconexiones > 0:
-                    st.markdown(status_badge("Desconexión", desconexiones, "Servicio interrumpido"), unsafe_allow_html=True)
+                    st.markdown(status_badge("Desconexión", desconexiones), unsafe_allow_html=True)
                 else:
                     st.markdown("""
-                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-gray-500">
+                    <div style='padding: 0.75rem; background: var(--bg-surface); border-radius: var(--radius-md); border: 1px solid var(--border-color); text-align: center; color: var(--text-muted);'>
                         No hay desconexiones
                     </div>
                     """, unsafe_allow_html=True)
-            
-            st.markdown("</div></div>", unsafe_allow_html=True)
 
     except Exception as e:
-        st.error(f"❌ Error al mostrar métricas: {str(e)}")
+        st.error(f"Error al mostrar métricas: {str(e)}")
         if st.session_state.get('DEBUG_MODE', False):
             st.exception(e)

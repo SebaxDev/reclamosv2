@@ -84,8 +84,7 @@ OPCIONES_PERMISOS = {
     "Gestión de clientes": "gestion_clientes",
     "Imprimir reclamos": "imprimir_reclamos",
     "Seguimiento técnico": "seguimiento_tecnico",
-    "Cierre de Reclamos": "cierre_reclamos",
-    "Administración": "admin"
+    "Cierre de Reclamos": "cierre_reclamos"
 }
 
 # --------------------------
