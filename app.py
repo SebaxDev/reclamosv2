@@ -223,6 +223,13 @@ st.set_page_config(
 if 'modo_oscuro' not in st.session_state:
     st.session_state.modo_oscuro = False
 
+# ✅ INICIALIZAR AUTH SI NO EXISTE
+if 'auth' not in st.session_state:
+    st.session_state.auth = {
+        'logged_in': False,
+        'user_info': {}
+    }
+
 # Aplicar los estilos mejorados (SIEMPRE, incluso antes del login)
 st.markdown(load_tailwind(), unsafe_allow_html=True)
 st.markdown(get_main_styles_v3(dark_mode=st.session_state.modo_oscuro), unsafe_allow_html=True)
@@ -499,6 +506,7 @@ precache_all_data(sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifica
 # --------------------------
 if not check_authentication():
     # Inicializar auth session
+    from components.auth import init_auth_session
     init_auth_session()
 
     # Conectar solo la hoja de usuarios para login
@@ -601,7 +609,7 @@ def cargar_datos():
     """Carga datos de Google Sheets con manejo robusto de nombres y fechas."""
     try:
         loading_placeholder = st.empty()
-        loading_placeholder.markdown(get_loading_spinner(), unsafe_allow_html=True)
+        loading_placeholder.markdown(loading_indicator(), unsafe_allow_html=True)  # ✅ CORREGIDO AQUÍ
 
         df_reclamos = safe_get_sheet_data(sheet_reclamos, COLUMNAS_RECLAMOS)
         df_clientes = safe_get_sheet_data(sheet_clientes, COLUMNAS_CLIENTES)
@@ -799,7 +807,8 @@ COMPONENTES = {
 }
 
 # Renderizar componente seleccionado
-if opcion in COMPONENTES and has_permission(COMPONENTES[opcion]["permiso"]):
+# ✅ VERIFICAR QUE EL USUARIO ESTÉ AUTENTICADO ANTES DE USAR has_permission
+if st.session_state.auth.get('logged_in', False) and opcion in COMPONENTES and has_permission(COMPONENTES[opcion]["permiso"]):
     with st.container():
         st.markdown("---")
         resultado = COMPONENTES[opcion]["render"](**COMPONENTES[opcion]["params"])
