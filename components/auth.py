@@ -162,6 +162,10 @@ def render_login(sheet_usuarios):
         st.session_state.login_loading = False
     if 'login_attempt' not in st.session_state:
         st.session_state.login_attempt = False
+    if 'login_username' not in st.session_state:
+        st.session_state.login_username = ""
+    if 'login_password' not in st.session_state:
+        st.session_state.login_password = ""
     
     # Mostrar spinner si está cargando
     if st.session_state.login_loading:
@@ -213,7 +217,7 @@ def render_login(sheet_usuarios):
             st.rerun()
     
     else:
-        # Formulario de login principal - usar st.markdown con unsafe_allow_html=True
+        # Formulario de login principal
         st.markdown("""
         <div class="login-container">
             <div class="login-header">
@@ -238,16 +242,14 @@ def render_login(sheet_usuarios):
             """, unsafe_allow_html=True)
             st.session_state.login_attempt = False
         
-        # Formulario de login - usar st.form normal
+        # Formulario de login
         with st.form("login_form", clear_on_submit=True):
-            # Campo de usuario
             st.markdown('<div class="login-form-group">', unsafe_allow_html=True)
             st.markdown('<label class="login-label">Usuario</label>', unsafe_allow_html=True)
             username = st.text_input("Usuario", placeholder="Ingresa tu usuario", 
                                    label_visibility="collapsed", key="login_username")
             st.markdown('</div>', unsafe_allow_html=True)
             
-            # Campo de contraseña
             st.markdown('<div class="login-form-group">', unsafe_allow_html=True)
             st.markdown('<label class="login-label">Contraseña</label>', unsafe_allow_html=True)
             password = st.text_input("Contraseña", type="password", 
@@ -255,16 +257,16 @@ def render_login(sheet_usuarios):
                                    label_visibility="collapsed", key="login_password")
             st.markdown('</div>', unsafe_allow_html=True)
             
-            # Botón de envío
             if st.form_submit_button("Ingresar al sistema", use_container_width=True):
                 if not username or not password:
                     st.error("Usuario y contraseña son requeridos")
                 else:
-                    # Guardar credenciales y activar loading
-                    st.session_state.login_username = username
-                    st.session_state.login_password = password
-                    st.session_state.login_loading = True
-                    st.rerun()
+                    # ✅ asignación protegida
+                    if username is not None and password is not None:
+                        st.session_state.login_username = username
+                        st.session_state.login_password = password
+                        st.session_state.login_loading = True
+                        st.rerun()
         
         st.markdown("""
             </div>
