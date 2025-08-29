@@ -67,6 +67,71 @@ from utils.pdf_utils import agregar_pie_pdf
 from utils.date_utils import parse_fecha, es_fecha_valida, format_fecha, ahora_argentina
 from utils.permissions import has_permission
 
+# --------------------------
+# CONEXIÓN CON GOOGLE SHEETS
+# --------------------------
+@st.cache_resource(ttl=3600)
+def init_google_sheets():
+    """Conexión optimizada a Google Sheets con retry automático"""
+
+    @retry(wait=wait_exponential(multiplier=1, min=4, max=10), stop=stop_after_attempt(3))
+    def _connect():
+        creds = service_account.Credentials.from_service_account_info(
+            {
+                **st.secrets["gcp_service_account"],
+                "private_key": st.secrets["gcp_service_account"]["private_key"].replace("\\n", "\n"),
+            },
+            scopes=[
+                "https://www.googleapis.com/auth/spreadsheets",
+                "https://www.googleapis.com/auth/drive",
+            ],
+        )
+        client = gspread.authorize(creds)
+
+        # Hoja de notificaciones
+        sheet_notifications = client.open_by_key(SHEET_ID).worksheet(WORKSHEET_NOTIFICACIONES)
+        init_notification_manager(sheet_notifications)
+
+        # Hoja de logs (crear si no existe)
+        try:
+            sheet_logs = client.open_by_key(SHEET_ID).worksheet("Logs")
+        except Exception:
+            try:
+                spreadsheet = client.open_by_key(SHEET_ID)
+                sheet_logs = spreadsheet.add_worksheet(title="Logs", rows=1000, cols=10)
+                sheet_logs.append_row(
+                    ["timestamp", "usuario", "nivel", "modulo", "accion", "detalles", "ip_address"]
+                )
+            except Exception as e:
+                st.error(f"Error al crear hoja de Logs: {str(e)}")
+                sheet_logs = None
+
+        return (
+            client.open_by_key(SHEET_ID).worksheet(WORKSHEET_RECLAMOS),
+            client.open_by_key(SHEET_ID).worksheet(WORKSHEET_CLIENTES),
+            client.open_by_key(SHEET_ID).worksheet(WORKSHEET_USUARIOS),
+            sheet_notifications,
+            sheet_logs,
+        )
+
+    try:
+        return _connect()
+    except Exception as e:
+        st.error(f"Error de conexión: {str(e)}")
+        st.stop()
+
+# --- SOLO SI ESTÁ AUTENTICADO CONTINUAR CON LA CARGA DE DATOS ---
+loading_placeholder = st.empty()
+loading_placeholder.markdown(loading_indicator(), unsafe_allow_html=True)
+
+try:
+    # ✅ ACTUALIZAR: Recibir la hoja de logs
+    sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications, sheet_logs = init_google_sheets()
+    if not all([sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications]):
+        st.stop()
+finally:
+    loading_placeholder.empty()
+
 # Al inicio de app.py, después de los imports
 def load_tailwind():
     return """
@@ -424,60 +489,6 @@ def migrar_uuids_existentes(sheet_reclamos, sheet_clientes):
         if DEBUG_MODE:
             st.exception(e)
         return False
-
-# --------------------------
-# CONEXIÓN CON GOOGLE SHEETS
-# --------------------------
-@st.cache_resource(ttl=3600)
-def init_google_sheets():
-    """Conexión optimizada a Google Sheets con retry automático"""
-
-    @retry(wait=wait_exponential(multiplier=1, min=4, max=10), stop=stop_after_attempt(3))
-    def _connect():
-        creds = service_account.Credentials.from_service_account_info(
-            {
-                **st.secrets["gcp_service_account"],
-                "private_key": st.secrets["gcp_service_account"]["private_key"].replace("\\n", "\n"),
-            },
-            scopes=[
-                "https://www.googleapis.com/auth/spreadsheets",
-                "https://www.googleapis.com/auth/drive",
-            ],
-        )
-        client = gspread.authorize(creds)
-
-        # Hoja de notificaciones
-        sheet_notifications = client.open_by_key(SHEET_ID).worksheet(WORKSHEET_NOTIFICACIONES)
-        init_notification_manager(sheet_notifications)
-
-        # Hoja de logs (crear si no existe)
-        try:
-            sheet_logs = client.open_by_key(SHEET_ID).worksheet("Logs")
-        except Exception:
-            try:
-                spreadsheet = client.open_by_key(SHEET_ID)
-                sheet_logs = spreadsheet.add_worksheet(title="Logs", rows=1000, cols=10)
-                sheet_logs.append_row(
-                    ["timestamp", "usuario", "nivel", "modulo", "accion", "detalles", "ip_address"]
-                )
-            except Exception as e:
-                st.error(f"Error al crear hoja de Logs: {str(e)}")
-                sheet_logs = None
-
-        return (
-            client.open_by_key(SHEET_ID).worksheet(WORKSHEET_RECLAMOS),
-            client.open_by_key(SHEET_ID).worksheet(WORKSHEET_CLIENTES),
-            client.open_by_key(SHEET_ID).worksheet(WORKSHEET_USUARIOS),
-            sheet_notifications,
-            sheet_logs,
-        )
-
-    try:
-        return _connect()
-    except Exception as e:
-        st.error(f"Error de conexión: {str(e)}")
-        st.stop()
-
 
 def precache_all_data(sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications, sheet_logs):
     """Precargar datos de todas las hojas"""
