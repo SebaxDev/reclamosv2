@@ -1,5 +1,6 @@
 # utils/permissions.py - ASEGURARSE QUE TENGA:
 
+import streamlit as st
 from config.settings import PERMISOS_POR_ROL
 
 def has_permission(permiso_requerido):
