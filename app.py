@@ -120,18 +120,6 @@ def init_google_sheets():
         st.error(f"Error de conexión: {str(e)}")
         st.stop()
 
-# --- SOLO SI ESTÁ AUTENTICADO CONTINUAR CON LA CARGA DE DATOS ---
-loading_placeholder = st.empty()
-loading_placeholder.markdown(loading_indicator(), unsafe_allow_html=True)
-
-try:
-    # ✅ ACTUALIZAR: Recibir la hoja de logs
-    sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications, sheet_logs = init_google_sheets()
-    if not all([sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications]):
-        st.stop()
-finally:
-    loading_placeholder.empty()
-
 # Al inicio de app.py, después de los imports
 def load_tailwind():
     return """
@@ -290,9 +278,6 @@ finally:
 # ✅ Datos del usuario actual
 user_info = st.session_state.auth.get('user_info', {})
 user_role = user_info.get('rol', '')
-
-# ✅ ACTUALIZAR: Pasar la hoja de logs al precache
-precache_all_data(sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications, sheet_logs)
 
 # --------------------------
 # FUNCIONES AUXILIARES OPTIMIZADAS
@@ -506,6 +491,8 @@ def precache_all_data(sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_noti
         except Exception as e:
             st.warning(f"Advertencia al cargar logs: {str(e)}")
 
+# ✅ ACTUALIZAR: Pasar la hoja de logs al precache
+precache_all_data(sheet_reclamos, sheet_clientes, sheet_usuarios, sheet_notifications, sheet_logs)
 
 # --------------------------
 # LOGIN
@@ -533,7 +520,6 @@ if not check_authentication():
     sheet_usuarios = init_usuarios_sheet()
     render_login(sheet_usuarios)
     st.stop()
-
 
 # --------------------------
 # CARGA DE DATOS SI ESTÁ LOGUEADO
@@ -580,93 +566,6 @@ if is_mobile():
     )
 else:
     opcion = st.session_state.get('current_page', 'Inicio')
-
-# --------------------------
-# SIDEBAR MODERNO
-# --------------------------
-with st.sidebar:
-    # Header del sidebar moderno
-    st.markdown("""
-    <div class="text-center py-4 border-b border-gray-200 dark:border-gray-700 mb-4">
-        <h2 class="text-2xl font-bold text-primary-600">📋 Fusion CRM</h2>
-        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">
-            Panel de Control
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Información de usuario (ya mejorada en auth.py)
-    render_user_info()
-
-    # Selector de modo oscuro moderno
-    st.markdown("""
-    <div class="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg mb-4">
-        <span class="text-xl">🌙</span>
-        <div class="flex-1">
-            <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Modo oscuro</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Cambiar entre tema claro y oscuro</p>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Checkbox de modo oscuro
-    st.checkbox("", value=st.session_state.modo_oscuro,
-                key=MODO_OSCURO_KEY, on_change=_on_toggle_modo_oscuro,
-                label_visibility="collapsed")
-    
-    # Notificaciones
-    if st.session_state.auth.get("logged_in", False):
-        render_notification_bell()
-    
-    st.markdown("---")
-    
-    # Navegación profesional
-    render_sidebar_navigation()
-    
-    # Herramientas de administrador (solo visible para admins)
-    if user_role == 'admin':
-        st.markdown("---")
-        st.markdown("**🔧 Herramientas Admin**")
-        if st.button("🆔 Generar UUIDs para registros", 
-                    help="Genera IDs únicos para registros existentes que no los tengan",
-                    disabled=st.session_state.get('uuid_migration_in_progress', False),
-                    use_container_width=True):
-            st.session_state.uuid_migration_in_progress = True
-            with st.spinner("Migrando UUIDs..."):
-                if migrar_uuids_existentes(sheet_reclamos, sheet_clientes):
-                    st.rerun()
-            st.session_state.uuid_migration_in_progress = False
-    
-    # En el sidebar, mejora el footer:
-    st.markdown(
-        f"""
-        <div style="margin-top: 2rem; padding: 1rem; background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
-            <div style="text-align: center; margin-bottom: 1rem;">
-                <div style="font-size: 2rem; margin-bottom: 0.5rem;">⚡</div>
-                <p style="margin:0; font-size: 0.9rem; color: var(--text-secondary);"><strong>Versión:</strong> 2.3.0</p>
-                <p style="margin:0; font-size: 0.8rem; color: var(--text-muted);">Última actualización</p>
-                <p style="margin:0; font-size: 0.9rem; color: var(--primary-color); font-weight: 600;">
-                    {ahora_argentina().strftime('%d/%m/%Y %H:%M')}
-                </p>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    st.markdown(
-        f"""
-        <hr style="border:1px solid var(--border-light); margin:1rem 0;" />
-        <div style="text-align:center; font-size:0.8rem; color: var(--text-muted);">
-            Desarrollado con 💜<br>por  
-            <a href="https://instagram.com/mellamansebax" target="_blank" 
-               style="color: var(--primary-color); text-decoration:none; font-weight:600;">
-               Sebastián Andrés
-            </a>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
 
 # --------------------------
 # INICIALIZACIÓN
