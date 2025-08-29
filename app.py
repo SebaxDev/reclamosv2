@@ -132,71 +132,71 @@ def load_tailwind():
                     colors: {
                         primary: {
                             50: '#eff6ff',
-                            100: '#dbeafe',
-                            200: '#bfdbfe',
-                            300: '#93c5fd',
-                            400: '#60a5fa',
-                            500: '#3b82f6',
-                            600: '#2563eb',
-                            700: '#1d4ed8',
-                            800: '#1e40af',
-                            900: '#1e3a8a'
+                            100: 'var(--color-primary-100)',
+                            200: 'var(--color-primary-200)',
+                            300: 'var(--color-primary-300)',
+                            400: 'var(--color-primary-400)',
+                            500: 'var(--color-primary-500)',
+                            600: 'var(--color-primary-600)',
+                            700: 'var(--color-primary-700)',
+                            800: 'var(--color-primary-800)',
+                            900: 'var(--color-primary-900)'
                         },
                         success: {
-                            50: '#f0fdf4',
-                            100: '#dcfce7',
-                            200: '#bbf7d0',
-                            300: '#86efac',
-                            400: '#4ade80',
-                            500: '#22c55e',
-                            600: '#16a34a',
-                            700: '#15803d',
-                            800: '#166534',
-                            900: '#14532d'
+                            50: 'var(--color-success-50)',
+                            100: 'var(--color-success-100)',
+                            200: 'var(--color-success-200)',
+                            300: 'var(--color-success-300)',
+                            400: 'var(--color-success-400)',
+                            500: 'var(--color-success-500)',
+                            600: 'var(--color-success-600)',
+                            700: 'var(--color-success-700)',
+                            800: 'var(--color-success-800)',
+                            900: 'var(--color-success-900)'
                         },
                         warning: {
-                            50: '#fffbeb',
-                            100: '#fef3c7',
-                            200: '#fde68a',
-                            300: '#fcd34d',
-                            400: '#fbbf24',
-                            500: '#f59e0b',
-                            600: '#d97706',
-                            700: '#b45309',
-                            800: '#92400e',
-                            900: '#78350f'
+                            50: 'var(--color-warning-50)',
+                            100: 'var(--color-warning-100)',
+                            200: 'var(--color-warning-200)',
+                            300: 'var(--color-warning-300)',
+                            400: 'var(--color-warning-400)',
+                            500: 'var(--color-warning-500)',
+                            600: 'var(--color-warning-600)',
+                            700: 'var(--color-warning-700)',
+                            800: 'var(--color-warning-800)',
+                            900: 'var(--color-warning-900)'
                         },
                         danger: {
-                            50: '#fef2f2',
-                            100: '#fee2e2',
-                            200: '#fecaca',
-                            300: '#fca5a5',
-                            400: '#f87171',
-                            500: '#ef4444',
-                            600: '#dc2626',
-                            700: '#b91c1c',
-                            800: '#991b1b',
-                            900: '#7f1d1d'
+                            50: 'var(--color-danger-50)',
+                            100: 'var(--color-danger-100)',
+                            200: 'var(--color-danger-200)',
+                            300: 'var(--color-danger-300)',
+                            400: 'var(--color-danger-400)',
+                            500: 'var(--color-danger-500)',
+                            600: 'var(--color-danger-600)',
+                            700: 'var(--color-danger-700)',
+                            800: 'var(--color-danger-800)',
+                            900: 'var(--color-danger-900)'
                         },
                         gray: {
-                            50: '#f9fafb',
-                            100: '#f3f4f6',
-                            200: '#e5e7eb',
-                            300: '#d1d5db',
-                            400: '#9ca3af',
-                            500: '#6b7280',
-                            600: '#4b5563',
-                            700: '#374151',
-                            800: '#1f2937',
-                            900: '#111827'
+                            50: 'var(--color-gray-50)',
+                            100: 'var(--color-gray-100)',
+                            200: 'var(--color-gray-200)',
+                            300: 'var(--color-gray-300)',
+                            400: 'var(--color-gray-400)',
+                            500: 'var(--color-gray-500)',
+                            600: 'var(--color-gray-600)',
+                            700: 'var(--color-gray-700)',
+                            800: 'var(--color-gray-800)',
+                            900: 'var(--color-gray-900)'
                         }
                     },
                     borderRadius: {
-                        sm: '0.25rem',
-                        md: '0.375rem',
-                        lg: '0.5rem',
-                        xl: '0.75rem',
-                        '2xl': '1rem'
+                        sm: 'var(--radius-sm)',
+                        md: 'var(--radius-md)',
+                        lg: 'var(--radius-lg)',
+                        xl: 'var(--radius-xl)',
+                        '2xl': 'var(--radius-2xl)'
                     },
                     fontFamily: {
                         sans: ['Inter', 'system-ui', 'sans-serif'],
@@ -378,7 +378,7 @@ def migrar_uuids_existentes(sheet_reclamos, sheet_clientes):
     """Genera UUIDs para registros existentes que no los tengan"""
     try:
         if not sheet_reclamos or not sheet_clientes:
-            st.error("No se pudo conectar a las hojas de cálculo")
+            st.error("No se pudo conectar to las hojas de cálculo")
             return False
 
         updates_reclamos = []
@@ -576,6 +576,23 @@ else:
     opcion = st.session_state.get('current_page', 'Inicio')
 
 # --------------------------
+# SIDEBAR DE NAVEGACIÓN
+# --------------------------
+with st.sidebar:
+    # Renderizar navegación
+    render_sidebar_navigation()
+    
+    # Info del usuario si está logueado
+    if st.session_state.auth.get('logged_in', False):
+        render_user_info()
+    
+    # Campana de notificaciones si existe
+    try:
+        render_notification_bell()
+    except:
+        pass  # Si no existe el componente, continuar
+
+# --------------------------
 # INICIALIZACIÓN
 # --------------------------
 
@@ -609,7 +626,7 @@ def cargar_datos():
     """Carga datos de Google Sheets con manejo robusto de nombres y fechas."""
     try:
         loading_placeholder = st.empty()
-        loading_placeholder.markdown(loading_indicator(), unsafe_allow_html=True)  # ✅ CORREGIDO AQUÍ
+        loading_placeholder.markdown(loading_indicator(), unsafe_allow_html=True)
 
         df_reclamos = safe_get_sheet_data(sheet_reclamos, COLUMNAS_RECLAMOS)
         df_clientes = safe_get_sheet_data(sheet_clientes, COLUMNAS_CLIENTES)
@@ -711,7 +728,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Dashboard de métricas
-render_metrics_dashboard(df_reclamos, is_mobile=is_mobile())
+try:
+    render_metrics_dashboard(df_reclamos, is_mobile=is_mobile())
+except Exception as e:
+    st.error(f"❌ Error al mostrar métricas: {str(e)}")
+    if DEBUG_MODE:
+        st.exception(e)
 
 # BREADCRUMB DE NAVEGACIÓN moderno
 st.markdown(f"""
@@ -811,16 +833,26 @@ COMPONENTES = {
 if st.session_state.auth.get('logged_in', False) and opcion in COMPONENTES and has_permission(COMPONENTES[opcion]["permiso"]):
     with st.container():
         st.markdown("---")
-        resultado = COMPONENTES[opcion]["render"](**COMPONENTES[opcion]["params"])
-        
-        if resultado and resultado.get('needs_refresh'):
-            st.cache_data.clear()
-            time.sleep(1)
-            st.rerun()
+        try:
+            resultado = COMPONENTES[opcion]["render"](**COMPONENTES[opcion]["params"])
+            
+            if resultado and resultado.get('needs_refresh'):
+                st.cache_data.clear()
+                time.sleep(1)
+                st.rerun()
+        except Exception as e:
+            st.error(f"❌ Error al cargar el componente {opcion}: {str(e)}")
+            if DEBUG_MODE:
+                st.exception(e)
 
 # --------------------------
 # RESUMEN DE JORNADA OPTIMIZADO
 # --------------------------
 with st.container():
-    render_resumen_jornada(df_reclamos)
+    try:
+        render_resumen_jornada(df_reclamos)
+    except Exception as e:
+        st.error(f"❌ Error al mostrar resumen de jornada: {str(e)}")
+        if DEBUG_MODE:
+            st.exception(e)
     st.markdown('</div>', unsafe_allow_html=True)

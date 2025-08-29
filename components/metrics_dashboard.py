@@ -15,10 +15,11 @@ def metric_card(value, label, icon="📊", trend=None, variant="primary"):
         "success": {"bg": "bg-gradient-to-r from-green-500 to-green-600", "text": "text-white", "icon_bg": "bg-green-600"},
         "warning": {"bg": "bg-gradient-to-r from-yellow-500 to-yellow-600", "text": "text-gray-900", "icon_bg": "bg-yellow-600"},
         "danger": {"bg": "bg-gradient-to-r from-red-500 to-red-600", "text": "text-white", "icon_bg": "bg-red-600"},
-        "neutral": {"bg": "bg-gradient-to-r from-gray-100 to-gray-200", "text": "text-gray-900", "icon_bg": "bg-gray-200"}
+        "neutral": {"bg": "bg-gradient-to-r from-gray-100 to-gray-200", "text": "text-gray-900", "icon_bg": "bg-gray-200"},
+        "info": {"bg": "bg-gradient-to-r from-blue-400 to-blue-500", "text": "text-white", "icon_bg": "bg-blue-500"}  # ✅ Añadido
     }
     
-    config = variant_config[variant]
+    config = variant_config.get(variant, variant_config["primary"])
     
     trend_html = ""
     if trend:
@@ -58,18 +59,22 @@ def status_badge(status, count, description=""):
     }
     
     config = status_config.get(status, {"color": "gray", "icon": "❓"})
+    color = config["color"]
+    
+    # ✅ CORREGIDO: Problema con comillas en f-strings
+    description_html = f'<p class="text-{color}-600 text-sm">{description}</p>' if description else ''
     
     return f"""
-    <div class="bg-{config['color']}-50 border border-{config['color']}-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+    <div class="bg-{color}-50 border border-{color}-200 rounded-lg p-4 hover:shadow-md transition-shadow">
         <div class="flex items-center justify-between">
             <div class="flex items-center space-x-3">
-                <span class="text-{config['color']}-600 text-xl">{config['icon']}</span>
+                <span class="text-{color}-600 text-xl">{config['icon']}</span>
                 <div>
-                    <p class="text-{config['color']}-800 font-semibold">{status}</p>
-                    {f'<p class="text-{config['color']}-600 text-sm">{description}</p>' if description else ''}
+                    <p class="text-{color}-800 font-semibold">{status}</p>
+                    {description_html}
                 </div>
             </div>
-            <span class="text-{config['color']}-800 font-bold text-xl">{count}</span>
+            <span class="text-{color}-800 font-bold text-xl">{count}</span>
         </div>
     </div>
     """
@@ -90,15 +95,25 @@ def render_metrics_dashboard(df_reclamos, is_mobile=False):
 
         df_metricas = df_reclamos.copy()
 
+        # ✅ Verificar si existe la columna "Estado"
+        if "Estado" not in df_metricas.columns:
+            st.error("❌ La columna 'Estado' no existe en los datos")
+            return
+
         # Procesamiento de datos
         df_activos = df_metricas[df_metricas["Estado"].isin(["Pendiente", "En curso"])]
         total_activos = len(df_activos)
         pendientes = len(df_activos[df_activos["Estado"] == "Pendiente"])
         en_curso = len(df_activos[df_activos["Estado"] == "En curso"])
         resueltos = len(df_metricas[df_metricas["Estado"] == "Resuelto"])
-        desconexiones = df_metricas["Estado"].str.strip().str.lower().eq("desconexión").sum()
         
-        # Calcular porcentajes
+        # ✅ Manejo seguro de desconexiones
+        try:
+            desconexiones = df_metricas["Estado"].str.strip().str.lower().eq("desconexión").sum()
+        except:
+            desconexiones = 0
+        
+        # Calcular porcentajes de forma segura
         total_reclamos = len(df_metricas)
         porcentaje_activos = (total_activos / total_reclamos * 100) if total_reclamos > 0 else 0
         porcentaje_resueltos = (resueltos / total_reclamos * 100) if total_reclamos > 0 else 0
@@ -152,7 +167,7 @@ def render_metrics_dashboard(df_reclamos, is_mobile=False):
             with cols[2]:
                 st.markdown(metric_card(en_curso, "En Curso", "🔧", variant="info"), unsafe_allow_html=True)
             with cols[3]:
-                st.markdown(metric_card(resueltos, "Resueltos", "✅", {"value": "+8%", "positive": True}, "success"), unsafe_allow_html=True)
+                st.markdown(metric_card(resueltos, "Resuelto", "✅", {"value": "+8%", "positive": True}, "success"), unsafe_allow_html=True)
             
             # Segunda fila de métricas
             cols2 = st.columns(4)
@@ -194,11 +209,6 @@ def render_metrics_dashboard(df_reclamos, is_mobile=False):
             st.markdown("</div></div>", unsafe_allow_html=True)
 
     except Exception as e:
-        st.markdown(f"""
-        <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
-            <div class="flex items-start">
-                <span class="text-red-600 text-lg mr-3">❌</span>
-                <p class="text-red-700">Error al mostrar métricas: {str(e)}</p>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.error(f"❌ Error al mostrar métricas: {str(e)}")
+        if st.session_state.get('DEBUG_MODE', False):
+            st.exception(e)
