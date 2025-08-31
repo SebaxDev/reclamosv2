@@ -47,8 +47,7 @@ from components.reclamos.impresion import render_impresion_reclamos
 from components.reclamos.planificacion import render_planificacion_grupos
 from components.reclamos.cierre import render_cierre_reclamos
 from components.resumen_jornada import render_resumen_jornada
-from components.notifications import init_notification_manager
-from components.notification_bell import render_notification_bell
+
 from components.auth import has_permission, check_authentication, render_login_form
 from components.navigation import *
 from components.metrics_dashboard import render_metrics_dashboard, metric_card
