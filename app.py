@@ -49,7 +49,7 @@ from components.reclamos.cierre import render_cierre_reclamos
 from components.resumen_jornada import render_resumen_jornada
 
 from components.auth import check_authentication, render_login_form
-from components.auth import has_permission as auth_has_permission
+from components.auth import auth_has_permission
 from components.navigation import *
 from components.metrics_dashboard import render_metrics_dashboard, metric_card
 from components.ui import breadcrumb, metric_card, card, badge, loading_indicator
