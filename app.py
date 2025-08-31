@@ -30,8 +30,6 @@ from config.settings import (
     COLUMNAS_RECLAMOS,
     COLUMNAS_CLIENTES,
     COLUMNAS_USUARIOS,
-    WORKSHEET_NOTIFICACIONES,
-    NOTIFICATION_TYPES,
     COLUMNAS_NOTIFICACIONES,
     SECTORES_DISPONIBLES,
     TIPOS_RECLAMO,
@@ -51,8 +49,8 @@ from components.reclamos.cierre import render_cierre_reclamos
 from components.resumen_jornada import render_resumen_jornada
 from components.notifications import init_notification_manager
 from components.notification_bell import render_notification_bell
-from components.auth import has_permission, check_authentication, render_login
-from components.navigation import render_sidebar_navigation, render_user_info
+from components.auth import has_permission, check_authentication, render_login_form
+from components.navigation import *
 from components.metrics_dashboard import render_metrics_dashboard, metric_card
 from components.ui import breadcrumb, metric_card, card, badge, loading_indicator
 from utils.helpers import show_warning, show_error, show_success, show_info, format_phone_number, format_dni, get_current_datetime, format_datetime, truncate_text, is_valid_email, safe_float_conversion, safe_int_conversion, get_status_badge, format_currency, get_breadcrumb_icon
