@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from utils.date_utils import ahora_argentina, format_fecha
 from utils.api_manager import api_manager
 from utils.data_manager import safe_get_sheet_data, batch_update_sheet
-from config.settings import NOTIFICATION_TYPES, COLUMNAS_NOTIFICACIONES, MAX_NOTIFICATIONS
 
 @st.cache_data(ttl=10)
 def get_cached_notifications(username, unread_only=True, limit=MAX_NOTIFICATIONS):
