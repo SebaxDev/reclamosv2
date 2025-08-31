@@ -1,12 +1,10 @@
-"""
-Paquete de componentes para la app de reclamos
-Permite importar submódulos como:
-    from components.auth import check_authentication
-"""
+# components/reclamos/__init__.py
 
-# Importaciones opcionales para acceso directo
-from . import auth
-from . import navigation
-from . import metrics_dashboard
-from . import ui
-from . import resumen_jornada
+# Importaciones de los módulos de reclamos
+from .nuevo import render_nuevo_reclamo
+from .gestion import render_gestion_reclamos
+from .impresion import render_impresion_reclamos
+from .planificacion import render_planificacion_grupos
+from .cierre import render_cierre_reclamos
+
+# NO incluir importaciones de auth aquí
