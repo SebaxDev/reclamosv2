@@ -40,13 +40,13 @@ from config.settings import (
 )
 
 # Local components
-from components.reclamos.nuevo import render_nuevo_reclamo
-from components.reclamos.gestion import render_gestion_reclamos
-from components.clientes.gestion import render_gestion_clientes
-from components.reclamos.impresion import render_impresion_reclamos
-from components.reclamos.planificacion import render_planificacion_grupos
-from components.reclamos.cierre import render_cierre_reclamos
-from components.resumen_jornada import render_resumen_jornada
+from components.reclamos.nuevo import *
+from components.reclamos.gestion import *
+from components.clientes.gestion import *
+from components.reclamos.impresion import *
+from components.reclamos.planificacion import *
+from components.reclamos.cierre import *
+from components.resumen_jornada import *
 
 from components.auth import check_authentication, render_login_form
 from components.auth import auth_has_permission
