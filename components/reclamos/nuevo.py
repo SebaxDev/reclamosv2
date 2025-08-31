@@ -195,8 +195,7 @@ def _mostrar_formulario_reclamo(estado, df_clientes, sheet_reclamos, sheet_clien
     return estado
 
 # --- FUNCIÓN DE PROCESAMIENTO OPTIMIZADA ---
-def _procesar_envio_formulario(estado, nombre, direccion, telefono, sector, tipo_reclamo, 
-                              detalles, precinto, atendido_por, df_clientes, sheet_reclamos, sheet_clientes):
+def _procesar_envio_formulario(estado, nombre, direccion, telefono, sector, tipo_reclamo, detalles, precinto, atendido_por, df_clientes, sheet_reclamos, sheet_clientes):
     """Procesa el envío del formulario de manera optimizada"""
     
     # Validar campos obligatorios
@@ -224,7 +223,13 @@ def _procesar_envio_formulario(estado, nombre, direccion, telefono, sector, tipo
         try:
             # Preparar datos del reclamo
             fecha_hora = ahora_argentina()
-            estado_reclamo = "Desconexión" if tipo_reclamo.lower() == "Desconexion a Pedido" else "Pendiente"
+            
+            # ✅ CAMBIO SOLICITADO: Estado "Desconexión" para desconexiones a pedido
+            if tipo_reclamo.lower() == "desconexion a pedido":
+                estado_reclamo = "Desconexión"
+            else:
+                estado_reclamo = "Pendiente"
+                
             id_reclamo = generar_id_unico()
 
             fila_reclamo = [
@@ -236,7 +241,7 @@ def _procesar_envio_formulario(estado, nombre, direccion, telefono, sector, tipo
                 telefono.strip(),
                 tipo_reclamo,
                 detalles.upper(),
-                estado_reclamo,
+                estado_reclamo,  # ✅ Usa el estado correcto
                 "",  # Técnico (vacío inicialmente)
                 precinto.strip(),
                 atendido_por.upper(),

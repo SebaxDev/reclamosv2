@@ -35,14 +35,14 @@ def render_gestion_reclamos(df_reclamos, df_clientes, sheet_reclamos, user):
         # Preprocesar datos una sola vez
         df = _preparar_datos(df_reclamos, df_clientes)
         
-        # Mostrar estadísticas (no produce cambios)
-        _mostrar_estadisticas(df)
+        # Mostrar estadísticas (no produce cambios) - ✅ ELIMINADA la distribución
+        _mostrar_conteo_tipos(df)  # ✅ Solo mantenemos el conteo por tipo con estilo Monokai
         
         # Mostrar filtros y tabla (no produce cambios)
         df_filtrado = _mostrar_filtros_y_tabla(df)
         
-        # Sección de edición de reclamos
-        cambios_edicion = _mostrar_edicion_reclamo(df_filtrado, sheet_reclamos)
+        # Sección de edición de reclamos - ✅ OPTIMIZADA para ser más ágil
+        cambios_edicion = _mostrar_edicion_reclamo_optimizada(df_filtrado, sheet_reclamos)
         if cambios_edicion:
             result.update({
                 'needs_refresh': True,
@@ -66,8 +66,6 @@ def render_gestion_reclamos(df_reclamos, df_clientes, sheet_reclamos, user):
         if DEBUG_MODE:
             st.exception(e)
         result['message'] = f"Error: {str(e)}"
-    finally:
-        st.markdown('</div>', unsafe_allow_html=True)
     
     return result
 
@@ -109,40 +107,48 @@ def _preparar_datos(df_reclamos, df_clientes):
 
     return df.sort_values("Fecha y hora", ascending=False)
 
-def _mostrar_estadisticas(df):
-    """Muestra estadísticas visuales de reclamos activos (no produce cambios)"""
-    df_activos = df[df["Estado"].isin(["Pendiente", "En curso"])]
+def _mostrar_conteo_tipos(df):
+    """Muestra conteo de reclamos por tipo con estilo Monokai"""
+    df_activos = df[df["Estado"].isin(["Pendiente", "En curso", "Desconexión"])]
     
     if not df_activos.empty:
-        # Detectar clientes con múltiples reclamos
-        duplicados = df_activos.duplicated(subset="Nº Cliente", keep=False)
-        
-        st.markdown("#### 📊 Distribución de reclamos activos")
-        cols = st.columns(3)
-        
-        with cols[0]:
-            st.metric("Total activos", len(df_activos))
-        with cols[1]:
-            st.metric("Clientes únicos", len(df_activos["Nº Cliente"].unique()))
-        with cols[2]:
-            st.metric("Clientes múltiples", duplicados.sum())
-        
-        # Distribución por tipo
-        st.markdown("#### Por tipo de reclamo")
+        st.markdown("#### 📊 Reclamos activos por tipo")
         conteo_por_tipo = df_activos["Tipo de reclamo"].value_counts().sort_index()
         
-        for i in range(0, len(conteo_por_tipo), 4):
-            cols = st.columns(4)
-            for j, col in enumerate(cols):
-                if i + j < len(conteo_por_tipo):
-                    tipo = conteo_por_tipo.index[i + j]
-                    cant = conteo_por_tipo.values[i + j]
-                    color = "#dc3545" if cant > 10 else "#0d6efd"
-                    col.markdown(f"""
-                    <div style='text-align:center;background:#f8f9fa;padding:5px;border-radius:8px;'>
-                        <h5 style='margin:0;color:#6c757d;font-size:0.7rem'>{tipo}</h5>
-                        <h4 style='margin:0;color:{color};font-size:1.2rem'>{cant}</h4>
-                    </div>""", unsafe_allow_html=True)
+        # Crear columnas dinámicamente
+        num_tipos = len(conteo_por_tipo)
+        cols = st.columns(min(4, num_tipos))
+        
+        for i, (tipo, cant) in enumerate(conteo_por_tipo.items()):
+            col_idx = i % 4
+            with cols[col_idx]:
+                # Estilo Monokai mejorado
+                st.markdown(f"""
+                <div style='
+                    text-align:center;
+                    background: var(--bg-card);
+                    padding: 1rem;
+                    border-radius: var(--radius-lg);
+                    border: 2px solid var(--border-color);
+                    margin-bottom: 1rem;
+                    box-shadow: var(--shadow-sm);
+                    transition: var(--transition-base);
+                '>
+                    <h5 style='
+                        margin: 0 0 0.5rem 0;
+                        color: var(--text-secondary);
+                        font-size: 0.8rem;
+                        font-family: "Fira Code", monospace;
+                    '>{tipo}</h5>
+                    <h4 style='
+                        margin: 0;
+                        color: var(--primary-color);
+                        font-size: 1.5rem;
+                        font-family: "Fira Code", monospace;
+                        font-weight: 700;
+                    '>{cant}</h4>
+                </div>
+                """, unsafe_allow_html=True)
 
 def _mostrar_filtros_y_tabla(df):
     """Muestra filtros y tabla de reclamos (no produce cambios)"""
@@ -195,150 +201,167 @@ def _mostrar_filtros_y_tabla(df):
     
     return df_filtrado
 
-def _mostrar_edicion_reclamo(df, sheet_reclamos):
-    """Muestra la interfaz para editar reclamos (puede producir cambios)"""
+def _mostrar_edicion_reclamo_optimizada(df, sheet_reclamos):
+    """Muestra interfaz optimizada para editar reclamos (búsqueda y edición integradas)"""
     st.markdown("---")
-    st.markdown("### ✏️ Editar un reclamo puntual")
+    st.markdown("### ✏️ Editor Rápido de Reclamos")
     
-    # Crear selector mejorado (sin UUID visible)
-    df["selector"] = df.apply(
-        lambda x: f"{x['Nº Cliente']} - {x['Nombre']} ({x['Estado']})", 
-        axis=1
-    )
+    # Búsqueda integrada con selección
+    col1, col2 = st.columns([3, 1])
     
-    # Añadir búsqueda por número de cliente o nombre
-    busqueda = st.text_input("🔍 Buscar por número de cliente o nombre")
+    with col1:
+        busqueda = st.text_input(
+            "🔍 Buscar reclamo (por número de cliente, nombre o ID)",
+            placeholder="Ej: 12345, Juan Pérez, ABC123..."
+        )
     
-    # Filtrar opciones basadas en la búsqueda
-    opciones_filtradas = [""] + df["selector"].tolist()
+    with col2:
+        st.markdown("<div style='height: 32px'></div>", unsafe_allow_html=True)
+        limpiar_busqueda = st.button("🧹 Limpiar", use_container_width=True)
+        if limpiar_busqueda:
+            st.session_state.edicion_busqueda = ""
+            st.rerun()
+    
+    # Filtrar reclamos basados en la búsqueda
+    reclamos_filtrados = df.copy()
     if busqueda:
-        opciones_filtradas = [""] + [
-            opc for opc in df["selector"].tolist() 
-            if busqueda.lower() in opc.lower()
-        ]
+        busqueda_lower = busqueda.lower()
+        mask = (
+            reclamos_filtrados["Nº Cliente"].str.lower().str.contains(busqueda_lower) |
+            reclamos_filtrados["Nombre"].str.lower().str.contains(busqueda_lower) |
+            reclamos_filtrados["ID Reclamo"].str.lower().str.contains(busqueda_lower)
+        )
+        reclamos_filtrados = reclamos_filtrados[mask]
     
-    seleccion = st.selectbox(
-        "Seleccioná un reclamo para editar", 
-        opciones_filtradas,
+    if reclamos_filtrados.empty:
+        if busqueda:
+            st.info("🔍 No se encontraron reclamos con esa búsqueda")
+        return False
+    
+    # Selección rápida con información compacta
+    opciones = []
+    for _, row in reclamos_filtrados.iterrows():
+        opcion_texto = (
+            f"{row['Nº Cliente']} - {row['Nombre']} | "
+            f"Sector {row['Sector']} | "
+            f"{format_fecha(row['Fecha y hora'], '%d/%m')} | "
+            f"{row['Estado']}"
+        )
+        opciones.append((opcion_texto, row))
+    
+    # Selector compacto
+    opciones_texto = [opc[0] for opc in opciones]
+    seleccion_idx = st.selectbox(
+        "Selecciona el reclamo a editar:",
+        range(len(opciones_texto)),
+        format_func=lambda i: opciones_texto[i],
         index=0
     )
-
-    if not seleccion:
+    
+    if seleccion_idx is None:
         return False
-
-    # Obtener el ID del reclamo (usando el UUID interno)
-    numero_cliente = seleccion.split(" - ")[0]
-    reclamo_actual = df[df["Nº Cliente"] == numero_cliente].iloc[0]
-    reclamo_id = reclamo_actual["ID Reclamo"]  # <-- Esto sigue usando el UUID internamente
-
-    # Mostrar información del reclamo
-    with st.expander("📄 Información del reclamo", expanded=True):
+    
+    reclamo_seleccionado = opciones[seleccion_idx][1]
+    reclamo_id = reclamo_seleccionado["ID Reclamo"]
+    
+    # Mostrar información compacta del reclamo seleccionado
+    with st.expander("📋 Información del reclamo seleccionado", expanded=True):
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown(f"**📅 Fecha:** {format_fecha(reclamo_actual['Fecha y hora'])}")
-            st.markdown(f"**👤 Cliente:** {reclamo_actual['Nombre']}")
-            st.markdown(f"**📍 Sector:** {reclamo_actual['Sector']}")
+            st.markdown(f"**📅 Fecha:** {format_fecha(reclamo_seleccionado['Fecha y hora'])}")
+            st.markdown(f"**👤 Cliente:** {reclamo_seleccionado['Nombre']}")
+            st.markdown(f"**📍 Dirección:** {reclamo_seleccionado.get('Dirección', 'N/A')}")
         with col2:
-            st.markdown(f"**📌 Tipo:** {reclamo_actual['Tipo de reclamo']}")
-            st.markdown(f"**⚙️ Estado actual:** {reclamo_actual['Estado']}")
-            st.markdown(f"**👷 Técnico:** {reclamo_actual.get('Técnico', 'No asignado')}")
-
-    # Formulario de edición
-    with st.form(f"form_editar_{reclamo_id}"):
+            st.markdown(f"**📌 Tipo:** {reclamo_seleccionado['Tipo de reclamo']}")
+            st.markdown(f"**🔢 Sector:** {reclamo_seleccionado['Sector']}")
+            st.markdown(f"**⚙️ Estado:** {reclamo_seleccionado['Estado']}")
+            st.markdown(f"**📞 Teléfono:** {reclamo_seleccionado.get('Teléfono', 'N/A')}")
+    
+    # Formulario de edición rápido
+    with st.form(f"form_editar_rapido_{reclamo_id}"):
         col1, col2 = st.columns(2)
         
         with col1:
-            direccion = st.text_input(
-                "Dirección", 
-                value=reclamo_actual.get("Dirección", ""),
-                help="Dirección completa del cliente"
+            nuevo_estado = st.selectbox(
+                "🔄 Nuevo estado",
+                ["Pendiente", "En curso", "Resuelto", "Desconexión"],
+                index=["Pendiente", "En curso", "Resuelto", "Desconexión"].index(
+                    reclamo_seleccionado["Estado"]
+                ) if reclamo_seleccionado["Estado"] in ["Pendiente", "En curso", "Resuelto", "Desconexión"] 
+                else 0
             )
-            telefono = st.text_input(
-                "Teléfono", 
-                value=reclamo_actual.get("Teléfono", ""),
-                help="Número de contacto del cliente"
-            )
+            
+            # Solo mostrar campos editables si el estado cambia
+            if nuevo_estado != reclamo_seleccionado["Estado"]:
+                st.info("💡 El estado cambiará al guardar")
         
         with col2:
-            tipo_reclamo = st.selectbox(
-                "Tipo de reclamo", 
-                sorted(df["Tipo de reclamo"].unique()),
-                index=sorted(df["Tipo de reclamo"].unique()).index(
-                    reclamo_actual["Tipo de reclamo"]
+            tecnico = st.text_input(
+                "👷 Asignar técnico",
+                value=reclamo_seleccionado.get("Técnico", ""),
+                placeholder="Nombre del técnico",
+                disabled=nuevo_estado == "Pendiente"
+            )
+        
+        # Campos adicionales para edición completa
+        with st.expander("✏️ Edición avanzada (opcional)"):
+            col3, col4 = st.columns(2)
+            with col3:
+                direccion_edit = st.text_input(
+                    "📍 Dirección",
+                    value=reclamo_seleccionado.get("Dirección", "")
                 )
-            )
-            try:
-                sector_normalizado = str(int(str(reclamo_actual.get("Sector", "")).strip()))
-                index_sector = SECTORES_DISPONIBLES.index(sector_normalizado) if sector_normalizado in SECTORES_DISPONIBLES else 0
-            except Exception:
-                index_sector = 0
-
-            sector_edit = st.selectbox(
-                "Sector",
-                options=SECTORES_DISPONIBLES,
-                index=index_sector
-            )
+                telefono_edit = st.text_input(
+                    "📞 Teléfono",
+                    value=reclamo_seleccionado.get("Teléfono", "")
+                )
+            with col4:
+                detalles_edit = st.text_area(
+                    "📝 Detalles",
+                    value=reclamo_seleccionado.get("Detalles", ""),
+                    height=100
+                )
+                precinto_edit = st.text_input(
+                    "🔒 Precinto",
+                    value=reclamo_seleccionado.get("N° de Precinto", "")
+                )
         
-        detalles = st.text_area(
-            "Detalles", 
-            value=reclamo_actual.get("Detalles", ""), 
-            height=100
-        )
-        
-        precinto = st.text_input(
-            "N° de Precinto", 
-            value=reclamo_actual.get("N° de Precinto", ""),
-            help="Número de precinto del medidor"
-        )
-
-        estado_nuevo = st.selectbox(
-            "Nuevo estado", 
-            ["Pendiente", "En curso", "Resuelto"],
-            index=["Pendiente", "En curso", "Resuelto"].index(
-                reclamo_actual["Estado"]
-            ) if reclamo_actual["Estado"] in ["Pendiente", "En curso", "Resuelto"] 
-            else 0
-        )
-
         # Botones de acción
-        col1, col2 = st.columns(2)
+        col_btn1, col_btn2 = st.columns(2)
         
-        guardar_cambios = col1.form_submit_button(
-            "💾 Guardar todos los cambios",
-            use_container_width=True
-        )
+        with col_btn1:
+            guardar_rapido = st.form_submit_button(
+                "💾 Guardar cambios rápidos",
+                use_container_width=True,
+                help="Solo cambia estado y técnico"
+            )
         
-        cambiar_estado = col2.form_submit_button(
-            "🔄 Cambiar solo estado",
-            use_container_width=True
-        )
-
+        with col_btn2:
+            guardar_completo = st.form_submit_button(
+                "🔄 Guardar todos los campos",
+                use_container_width=True,
+                help="Guarda todos los campos editables"
+            )
+    
     # Procesar acciones
-    if guardar_cambios:
-        if not direccion.strip() or not detalles.strip():
-            st.warning("⚠️ Dirección y detalles no pueden estar vacíos.")
-            return False
+    if guardar_rapido or guardar_completo:
+        updates = {
+            "estado": nuevo_estado,
+            "tecnico": tecnico if nuevo_estado != "Pendiente" else ""
+        }
+        
+        if guardar_completo:
+            updates.update({
+                "direccion": direccion_edit,
+                "telefono": telefono_edit,
+                "detalles": detalles_edit,
+                "precinto": precinto_edit
+            })
         
         return _actualizar_reclamo(
             df, sheet_reclamos, reclamo_id,
-            {
-                "direccion": direccion,
-                "telefono": telefono,
-                "tipo_reclamo": tipo_reclamo,
-                "detalles": detalles,
-                "precinto": precinto,
-                "sector": sector_edit,
-                "estado": estado_nuevo,
-                "nombre": reclamo_actual.get("Nombre", "")  # ✅ Se agrega aquí
-            },
-            full_update=True
-        )
-
-    if cambiar_estado:
-        return _actualizar_reclamo(
-            df, sheet_reclamos, reclamo_id,
-            {"estado": estado_nuevo},
-            full_update=False
+            updates,
+            full_update=guardar_completo
         )
     
     return False
@@ -356,16 +379,18 @@ def _actualizar_reclamo(df, sheet_reclamos, reclamo_id, updates, full_update=Fal
             if full_update:
                 # ✅ Mapeo corregido de columnas según tu hoja
                 updates_list.extend([
-                    {"range": f"E{fila}", "values": [[updates['direccion'].upper()]]},  # Dirección
-                    {"range": f"F{fila}", "values": [[str(updates['telefono'])]]},     # Teléfono
-                    {"range": f"G{fila}", "values": [[updates['tipo_reclamo']]]},      # Tipo reclamo
-                    {"range": f"H{fila}", "values": [[updates['detalles']]]},          # Detalles
-                    {"range": f"K{fila}", "values": [[updates['precinto']]]},          # Precinto
-                    {"range": f"C{fila}", "values": [[str(updates['sector'])]]},       # Sector
+                    {"range": f"E{fila}", "values": [[updates.get('direccion', '').upper()]]},  # Dirección
+                    {"range": f"F{fila}", "values": [[str(updates.get('telefono', ''))]]},     # Teléfono
+                    {"range": f"H{fila}", "values": [[updates.get('detalles', '')]]},          # Detalles
+                    {"range": f"K{fila}", "values": [[updates.get('precinto', '')]]},          # Precinto
                 ])
 
             # ✅ Estado (columna I)
             updates_list.append({"range": f"I{fila}", "values": [[updates['estado']]]})
+
+            # ✅ Técnico (columna J) - solo si se proporciona
+            if 'tecnico' in updates:
+                updates_list.append({"range": f"J{fila}", "values": [[updates['tecnico']]]})
 
             # Si pasa a pendiente, limpiar columna J (técnico)
             if updates['estado'] == "Pendiente":
