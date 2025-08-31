@@ -4,12 +4,22 @@
 # --------------------------------------------------
 
 # Standard library
+import io
+import json
 import time
 from datetime import datetime
+import logging
 
 # Third-party
 import pandas as pd
+import pytz
 import streamlit as st
+from google.oauth2 import service_account
+import gspread
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from streamlit_lottie import st_lottie
+from tenacity import retry, wait_exponential, stop_after_attempt
 
 # Config
 from config.settings import (
@@ -19,9 +29,15 @@ from config.settings import (
     WORKSHEET_USUARIOS,
     COLUMNAS_RECLAMOS,
     COLUMNAS_CLIENTES,
+    COLUMNAS_USUARIOS,
+    WORKSHEET_NOTIFICACIONES,
+    NOTIFICATION_TYPES,
+    COLUMNAS_NOTIFICACIONES,
     SECTORES_DISPONIBLES,
     TIPOS_RECLAMO,
     TECNICOS_DISPONIBLES,
+    MATERIALES_POR_RECLAMO,
+    ROUTER_POR_SECTOR,
     DEBUG_MODE
 )
 
@@ -32,14 +48,22 @@ from components.clientes.gestion import render_gestion_clientes
 from components.reclamos.impresion import render_impresion_reclamos
 from components.reclamos.planificacion import render_planificacion_grupos
 from components.reclamos.cierre import render_cierre_reclamos
-from components.auth import check_authentication, render_login
-from components.navigation import render_user_info
+from components.resumen_jornada import render_resumen_jornada
+from components.notifications import init_notification_manager
+from components.notification_bell import render_notification_bell
+from components.auth import has_permission, check_authentication, render_login
+from components.navigation import render_sidebar_navigation, render_user_info
+from components.metrics_dashboard import render_metrics_dashboard, metric_card
+from components.ui import breadcrumb, metric_card, card, badge, loading_indicator
+from utils.helpers import show_warning, show_error, show_success, show_info, format_phone_number, format_dni, get_current_datetime, format_datetime, truncate_text, is_valid_email, safe_float_conversion, safe_int_conversion, get_status_badge, format_currency, get_breadcrumb_icon
 
 # Utils
 from utils.styles import get_main_styles, get_loading_spinner, loading_indicator
-from utils.data_manager import safe_get_sheet_data
-from utils.helpers import get_status_badge, ahora_argentina
-from utils.api_manager import api_manager
+from utils.data_manager import safe_get_sheet_data, safe_normalize, update_sheet_data, batch_update_sheet
+from utils.api_manager import api_manager, init_api_session_state
+from utils.pdf_utils import agregar_pie_pdf
+from utils.date_utils import parse_fecha, es_fecha_valida, format_fecha, ahora_argentina
+from utils.permissions import has_permission
 
 # CONFIGURACIÓN DE PÁGINA
 st.set_page_config(
@@ -57,7 +81,7 @@ st.set_page_config(
 api_manager.initialize()
 
 # Cargar estilos Monokai (siempre modo oscuro)
-st.markdown(get_main_styles_v2(dark_mode=True), unsafe_allow_html=True)
+st.markdown(get_main_styles(dark_mode=True), unsafe_allow_html=True)
 
 # --------------------------
 # FUNCIONES AUXILIARES
@@ -159,7 +183,7 @@ def render_navegacion_principal():
 
 if not check_authentication():
     df_reclamos, df_clientes, df_usuarios, sheet_reclamos, sheet_clientes = cargar_datos()
-    render_login(df_usuarios)
+    render_login_form(df_usuarios)
     st.stop()
 
 # --------------------------

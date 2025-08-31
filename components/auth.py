@@ -71,7 +71,7 @@ def verify_credentials(username, password, sheet_usuarios):
         
     return None
 
-def render_login(sheet_usuarios):
+def render_login_form(sheet_usuarios):
     """
     Renderiza el formulario de login estilo Facebook con tema Monokai
     Diseño responsive: horizontal en desktop, vertical en móvil
