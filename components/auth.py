@@ -89,7 +89,7 @@ def check_authentication():
     init_auth_session()
     return st.session_state.auth['logged_in']
 
-def has_permission(required_permission):  # 👈 renombrada para coincidir con app.py
+def auth_has_permission(required_permission):  # 👈 renombrada para coincidir con app.py
     """Verifica si el usuario tiene el permiso requerido"""
     if not check_authentication():
         return False
