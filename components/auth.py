@@ -13,36 +13,28 @@ import time
 from utils.styles import get_loading_spinner
 
 def init_auth_session():
-    """Inicializa las variables de sesión de autenticación"""
+    """Inicializa las variables de sesión"""
     if 'auth' not in st.session_state:
         st.session_state.auth = {
             'logged_in': False,
-            'user_info': None,
-            'login_attempts': 0
+            'user_info': None
         }
 
 def logout():
-    """Cierra la sesión del usuario y limpia el estado"""
-    st.session_state.auth = {'logged_in': False, 'user_info': None, 'login_attempts': 0}
-    st.cache_data.clear()
-    st.success("Sesión cerrada correctamente")
+    """Cierra la sesión del usuario"""
+    st.session_state.auth = {'logged_in': False, 'user_info': None}
+    st.cache_data.clear()  # Limpiar caché de datos
 
 def verify_credentials(username, password, sheet_usuarios):
-    """Verifica las credenciales del usuario contra Google Sheets"""
     try:
         df_usuarios = safe_get_sheet_data(sheet_usuarios, COLUMNAS_USUARIOS)
         
-        if df_usuarios.empty:
-            return None
-            
-        # Normalización
+        # Normalización de datos
         df_usuarios["username"] = df_usuarios["username"].str.strip().str.lower()
         df_usuarios["password"] = df_usuarios["password"].astype(str).str.strip()
         
-        # Campo activo flexible
-        df_usuarios["activo"] = df_usuarios["activo"].astype(str).str.upper().isin([
-            "SI", "TRUE", "1", "SÍ", "VERDADERO", "YES", "Y"
-        ])
+        # Manejo flexible de campo 'activo'
+        df_usuarios["activo"] = df_usuarios["activo"].astype(str).str.upper().isin(["SI", "TRUE", "1", "SÍ", "VERDADERO"])
         
         usuario = df_usuarios[
             (df_usuarios["username"] == username.strip().lower()) & 
@@ -57,317 +49,227 @@ def verify_credentials(username, password, sheet_usuarios):
                 "rol": usuario.iloc[0]["rol"].lower(),
                 "permisos": PERMISOS_POR_ROL.get(usuario.iloc[0]["rol"].lower(), {}).get('permisos', [])
             }
-            
     except Exception as e:
         st.error(f"Error en autenticación: {str(e)}")
-        
     return None
 
-def render_login_form(sheet_usuarios):
-    """Renderiza el formulario de login estilo Facebook con tema Monokai"""
+def render_login(sheet_usuarios):
+    """Formulario de login con diseño profesional CRM"""
     
-    # CSS personalizado para el formulario de login
-    st.markdown("""
+    # CSS personalizado para el login (mantener igual)
+    login_styles = """
     <style>
-    :root {
-        --primary-color: #FF6188;
-        --secondary-color: #66D9EF;
-        --accent-color: #A6E22E;
-        --purple-color: #AE81FF;
-        --bg-primary: #2D2A2E;
-        --bg-secondary: #403E41;
-        --bg-card: #3A3739;
-        --text-primary: #FCFCFA;
-        --text-secondary: #CFCFC2;
-        --text-muted: #75715E;
-        --border-color: #5B595C;
-        --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        --radius-sm: 8px;
-        --radius-md: 12px;
-        --radius-lg: 16px;
-        --radius-xl: 20px;
-    }
-    
     .login-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 100vh;
-        background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
-        padding: 2rem;
-        font-family: 'Fira Code', monospace;
-    }
-    
-    .login-card {
+        max-width: 400px;
+        margin: 60px auto;
+        padding: 40px;
         background: var(--bg-card);
         border-radius: var(--radius-xl);
-        box-shadow: var(--shadow);
         border: 1px solid var(--border-color);
-        overflow: hidden;
-        width: 100%;
-        max-width: 400px;
-        position: relative;
+        box-shadow: var(--shadow-lg);
+        text-align: center;
     }
     
     .login-header {
-        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 50%, var(--accent-color) 100%);
-        padding: 3rem 2rem 2rem 2rem;
-        text-align: center;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .login-header::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-        animation: shimmer 3s ease-in-out infinite;
-    }
-    
-    @keyframes shimmer {
-        0%, 100% { transform: rotate(0deg); }
-        50% { transform: rotate(180deg); }
+        margin-bottom: 30px;
     }
     
     .login-logo {
-        font-size: 4rem;
-        margin-bottom: 1rem;
-        position: relative;
-        z-index: 1;
-        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+        font-size: 3.5rem;
+        margin-bottom: 15px;
+        background: linear-gradient(135deg, #66D9EF 0%, #F92672 30%, #A6E22E 70%, #AE81FF 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
     
     .login-title {
-        color: white;
-        font-size: 2rem;
-        font-weight: 900;
-        margin: 0;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        position: relative;
-        z-index: 1;
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+        color: var(--text-primary);
     }
     
     .login-subtitle {
-        color: rgba(255,255,255,0.9);
-        font-size: 1rem;
-        margin-top: 0.5rem;
-        font-weight: 300;
-        position: relative;
-        z-index: 1;
+        color: var(--text-secondary);
+        margin-bottom: 30px;
+        font-size: 0.95rem;
     }
     
     .login-form {
-        padding: 2rem;
+        text-align: left;
     }
     
-    .form-group {
-        margin-bottom: 1.5rem;
-    }
-    
-    .form-label {
-        display: block;
-        color: var(--text-primary);
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-        font-size: 0.9rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    .form-input {
-        width: 100%;
-        padding: 1rem;
-        background: var(--bg-secondary);
-        border: 2px solid var(--border-color);
-        border-radius: var(--radius-md);
-        color: var(--text-primary);
-        font-size: 1rem;
-        font-family: 'Fira Code', monospace;
-        transition: all 0.3s ease;
-        box-sizing: border-box;
-    }
-    
-    .form-input:focus {
-        outline: none;
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(255, 97, 136, 0.1);
-        background: var(--bg-primary);
-    }
-    
-    .form-input::placeholder {
-        color: var(--text-muted);
+    .login-input {
+        margin-bottom: 20px;
     }
     
     .login-button {
         width: 100%;
-        padding: 1rem;
-        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-        border: none;
-        border-radius: var(--radius-md);
-        color: white;
+        margin-top: 10px;
+        padding: 12px;
         font-size: 1rem;
-        font-weight: 700;
-        font-family: 'Fira Code', monospace;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(255, 97, 136, 0.3);
-    }
-    
-    .login-button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(255, 97, 136, 0.4);
-    }
-    
-    .login-button:active {
-        transform: translateY(0);
-    }
-    
-    .error-message {
-        background: rgba(255, 97, 136, 0.1);
-        border: 1px solid var(--primary-color);
-        border-radius: var(--radius-md);
-        padding: 1rem;
-        margin-bottom: 1rem;
-        color: var(--primary-color);
-        text-align: center;
         font-weight: 600;
     }
     
     .login-footer {
-        text-align: center;
-        padding: 1.5rem;
-        background: var(--bg-secondary);
-        border-top: 1px solid var(--border-color);
-    }
-    
-    .login-footer p {
-        margin: 0;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border-light);
         color: var(--text-muted);
-        font-size: 0.8rem;
+        font-size: 0.85rem;
     }
     
-    /* Ocultar elementos de Streamlit */
-    .stApp > header {display: none;}
-    .stApp > .main .block-container {padding-top: 0; max-width: none;}
-    .stSelectbox > div > div > div {background-color: var(--bg-secondary);}
-    </style>
-    """, unsafe_allow_html=True)
+    .login-error {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #EF4444;
+        padding: 12px;
+        border-radius: var(--radius-md);
+        margin: 15px 0;
+        text-align: center;
+    }
     
-    # Contenedor principal del login
+    .login-success {
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        color: #10B981;
+        padding: 12px;
+        border-radius: var(--radius-md);
+        margin: 15px 0;
+        text-align: center;
+    }
+    </style>
+    """
+    
     st.markdown("""
     <div class="login-container">
-        <div class="login-card">
-            <div class="login-header">
-                <div class="login-logo">🔐</div>
-                <h1 class="login-title">Fusion CRM</h1>
-                <p class="login-subtitle">Sistema de Gestión de Reclamos</p>
-            </div>
-            <div class="login-form">
+        <div class="login-header">
+            <h1 class="login-title">Fusion CRM</h1>
+        </div>
     """, unsafe_allow_html=True)
     
-    # Inicializar sesión de autenticación
-    init_auth_session()
+    # Inicializar estado de carga
+    if 'login_loading' not in st.session_state:
+        st.session_state.login_loading = False
+    if 'login_attempt' not in st.session_state:
+        st.session_state.login_attempt = False
+    if 'login_username' not in st.session_state:
+        st.session_state.login_username = ""
+    if 'login_password' not in st.session_state:
+        st.session_state.login_password = ""
     
-    # Formulario de login usando Streamlit
-    with st.form("login_form"):
-        st.markdown('<div class="form-group">', unsafe_allow_html=True)
-        st.markdown('<label class="form-label">👤 Usuario</label>', unsafe_allow_html=True)
-        username = st.text_input(
-            "Username",
-            placeholder="Ingresa tu nombre de usuario",
-            label_visibility="collapsed"
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
+    # Mostrar spinner si está cargando
+    if st.session_state.login_loading:
+        st.markdown(get_loading_spinner(), unsafe_allow_html=True)
+        st.markdown("""
+        <div style="text-align: center; margin-top: 20px;">
+            <p style="color: var(--text-secondary);">Verificando credenciales...</p>
+        </div>
+        """, unsafe_allow_html=True)
         
-        st.markdown('<div class="form-group">', unsafe_allow_html=True)
-        st.markdown('<label class="form-label">🔒 Contraseña</label>', unsafe_allow_html=True)
-        password = st.text_input(
-            "Password",
-            type="password",
-            placeholder="Ingresa tu contraseña",
-            label_visibility="collapsed"
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Botón de login
-        login_clicked = st.form_submit_button(
-            "🚀 INICIAR SESIÓN",
-            use_container_width=True
-        )
+        # Procesar la autenticación
+        try:
+            user_info = verify_credentials(
+                st.session_state.login_username, 
+                st.session_state.login_password, 
+                sheet_usuarios
+            )
+            
+            if user_info:
+                st.session_state.auth = {
+                    'logged_in': True,
+                    'user_info': user_info
+                }
+                st.session_state.login_loading = False
+                st.session_state.login_attempt = False
+                st.rerun()
+            else:
+                st.session_state.login_loading = False
+                st.session_state.login_attempt = True
+                st.rerun()
+                
+        except Exception as e:
+            st.session_state.login_loading = False
+            st.session_state.login_attempt = True
+            st.error(f"Error en autenticación: {str(e)}")
+            st.rerun()
     
-    # Procesar login
-    if login_clicked:
-        if not username or not password:
-            st.markdown("""
-            <div class="error-message">
-                ⚠️ Por favor, completa todos los campos
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            # Mostrar spinner de carga
-            with st.spinner("Verificando credenciales..."):
-                time.sleep(1)  # Simular tiempo de procesamiento
-                
-                user_info = verify_credentials(username, password, sheet_usuarios)
-                
-                if user_info:
-                    st.session_state.auth['logged_in'] = True
-                    st.session_state.auth['user_info'] = user_info
-                    st.session_state.auth['login_attempts'] = 0
-                    
-                    st.markdown("""
-                    <div class="error-message" style="background: rgba(166, 226, 46, 0.1); 
-                                                   border-color: #A6E22E; 
-                                                   color: #A6E22E;">
-                        ✅ Bienvenido, iniciando sesión...
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    time.sleep(1)
-                    st.rerun()
+    else:
+        # Mostrar mensaje de error si hubo un intento fallido
+        if st.session_state.login_attempt:
+            st.error("❌ Credenciales incorrectas o usuario inactivo")
+            st.session_state.login_attempt = False
+        
+        # Formulario de login
+        with st.form("login_formulario"):
+            st.markdown('<div class="login-form">', unsafe_allow_html=True)
+            
+            # Campo de usuario con icono
+            col1, col2 = st.columns([1, 10])
+            with col1:
+                st.markdown('<div style="font-size: 1.5rem; padding-top: 10px;">👤</div>', unsafe_allow_html=True)
+            with col2:
+                username = st.text_input("Usuario", placeholder="Ingresa tu usuario", 
+                                       value=st.session_state.login_username,
+                                       label_visibility="collapsed").strip()
+            
+            # Campo de contraseña con icono
+            col1, col2 = st.columns([1, 10])
+            with col1:
+                st.markdown('<div style="font-size: 1.5rem; padding-top: 10px;">🔒</div>', unsafe_allow_html=True)
+            with col2:
+                password = st.text_input("Contraseña", type="password", 
+                                       placeholder="Ingresa tu contraseña", 
+                                       value=st.session_state.login_password,
+                                       label_visibility="collapsed")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            if st.form_submit_button("🚀 Ingresar al sistema", use_container_width=True):
+                if not username or not password:
+                    st.error("⚠️ Usuario y contraseña son requeridos")
                 else:
-                    st.session_state.auth['login_attempts'] += 1
-                    attempts = st.session_state.auth['login_attempts']
-                    
-                    st.markdown(f"""
-                    <div class="error-message">
-                        ❌ Credenciales incorrectas ({attempts}/3 intentos)
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    if attempts >= 3:
-                        st.markdown("""
-                        <div class="error-message">
-                            🚫 Demasiados intentos fallidos. Contacta al administrador.
-                        </div>
-                        """, unsafe_allow_html=True)
+                    # Guardar credenciales y activar loading
+                    st.session_state.login_username = username
+                    st.session_state.login_password = password
+                    st.session_state.login_loading = True
+                    st.rerun()
     
-    # Footer y cierre de contenedores
     st.markdown("""
-            </div>
-            <div class="login-footer">
-                <p>© 2025 Fusion CRM • v2.3.0</p>
-                <p style="font-size: 0.8rem; margin-top: 5px; color: var(--text-muted);">
-                    Sistema optimizado con tecnología Monokai Pro
-                </p>
-            </div>
+        <div class="login-footer">
+            <p>© 2025 Fusion CRM • v2.3.0</p>
+            <p style="font-size: 0.8rem; margin-top: 5px;">Sistema optimizado para gestión eficiente</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
+    
+    # Procesar login después del render
+    if st.session_state.login_loading:
+        time.sleep(0.5)  # Pequeña pausa para el efecto visual
+        user_info = verify_credentials(username, password, sheet_usuarios)
+        
+        if user_info:
+            st.session_state.auth = {
+                'logged_in': True,
+                'user_info': user_info
+            }
+            st.session_state.login_loading = False
+            st.success(f"✅ Bienvenido, {user_info['nombre']}!")
+            time.sleep(1)
+            st.rerun()
+        else:
+            st.session_state.login_loading = False
+            st.error("❌ Credenciales incorrectas o usuario inactivo")
+            time.sleep(2)
+            st.rerun()
 
 def check_authentication():
     """Verifica si el usuario está autenticado"""
     init_auth_session()
     return st.session_state.auth['logged_in']
 
-def auth_has_permission(required_permission):
-    """Verifica si el usuario tiene el permiso requerido"""
+def has_permission(required_permission):
+    """Verifica permisos del usuario"""
     if not check_authentication():
         return False
         
@@ -382,56 +284,46 @@ def auth_has_permission(required_permission):
     return required_permission in user_info.get('permisos', [])
 
 def render_user_info():
-    """Muestra la información del usuario en el sidebar con estilo Monokai"""
+    """Versión mejorada con iconos y estilo"""
     if not check_authentication():
         return
         
     user_info = st.session_state.auth['user_info']
     role_config = {
-        'admin': {'icon': '👑', 'color': '#FF6188', 'badge': 'Admin'},
-        'oficina': {'icon': '💼', 'color': '#66D9EF', 'badge': 'Oficina'},
-        'tecnico': {'icon': '🔧', 'color': '#A6E22E', 'badge': 'Técnico'},
-        'supervisor': {'icon': '👔', 'color': '#AE81FF', 'badge': 'Supervisor'}
+        'admin': {'icon': '👑', 'color': '#FF5733', 'badge': 'Administrador'},
+        'oficina': {'icon': '💼', 'color': '#338AFF', 'badge': 'Oficina'},
+        'tecnico': {'icon': '🔧', 'color': '#10B981', 'badge': 'Técnico'},
+        'supervisor': {'icon': '👔', 'color': '#8B5CF6', 'badge': 'Supervisor'}
     }
     
-    config = role_config.get(user_info['rol'].lower(), 
-                           {'icon': '👤', 'color': '#75715E', 'badge': 'Usuario'})
+    config = role_config.get(user_info['rol'].lower(), {'icon': '👤', 'color': '#555', 'badge': 'Usuario'})
     
-    st.markdown(f"""
-    <div style="text-align: center; margin-bottom: 1.5rem; padding: 1.5rem; 
-                background: var(--bg-card); border-radius: var(--radius-xl); 
-                border: 1px solid var(--border-color);">
-        <div style="font-size: 3.5rem; margin-bottom: 0.5rem; 
-                    background: linear-gradient(135deg, {config['color']}, var(--primary-color));
-                    -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-            {config['icon']}
+    with st.sidebar:
+        st.markdown("---")
+        st.markdown(f"""
+        <div style="text-align: center; margin-bottom: 20px;">
+            <div style="font-size: 3rem; margin-bottom: 10px; background: linear-gradient(135deg, {config['color']}, #66D9EF); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                {config['icon']}
+            </div>
+            <h3 style="margin: 0; color: var(--text-primary); font-weight: 600;">{user_info['nombre']}</h3>
+            <div style="background: rgba({int(config['color'][1:3], 16)}, {int(config['color'][3:5], 16)}, {int(config['color'][5:7], 16)}, 0.15); 
+                      color: {config['color']}; 
+                      padding: 4px 12px; 
+                      border-radius: 20px; 
+                      font-size: 0.8rem; 
+                      font-weight: 600;
+                      margin: 8px 0;
+                      display: inline-block;
+                      border: 1px solid rgba({int(config['color'][1:3], 16)}, {int(config['color'][3:5], 16)}, {int(config['color'][5:7], 16)}, 0.3);">
+                {config['badge']}
+            </div>
+            <p style="color: var(--text-secondary); margin: 5px 0; font-size: 0.9rem;">
+                @{user_info['username']}
+            </p>
         </div>
-        <h3 style="margin: 0; color: var(--text-primary); font-weight: 700; 
-                   font-family: 'Fira Code', monospace;">
-            {user_info['nombre']}
-        </h3>
-        <div style="background: rgba({int(config['color'][1:3], 16)}, {int(config['color'][3:5], 16)}, {int(config['color'][5:7], 16)}, 0.15); 
-                  color: {config['color']}; 
-                  padding: 0.5rem 1rem; 
-                  border-radius: var(--radius-xl); 
-                  font-size: 0.8rem; 
-                  font-weight: 700;
-                  font-family: 'Fira Code', monospace;
-                  margin: 0.75rem 0;
-                  display: inline-block;
-                  border: 2px solid {config['color']};
-                  text-transform: uppercase;
-                  letter-spacing: 0.5px;">
-            {config['badge']}
-        </div>
-        <p style="color: var(--text-secondary); margin: 0.5rem 0 0 0; 
-                  font-size: 0.85rem; font-family: 'Fira Code', monospace;">
-            @{user_info['username']}
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    if st.button("🚪 **Cerrar sesión**", use_container_width=True, 
-                 key="logout_btn", help="Cerrar la sesión actual"):
-        logout()
-        st.rerun()
+        """, unsafe_allow_html=True)
+        
+        if st.button("🚪 Cerrar sesión", use_container_width=True, key="logout_btn"):
+            logout()
+            st.rerun()
+        st.markdown("---")
