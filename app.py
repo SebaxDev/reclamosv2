@@ -47,7 +47,7 @@ from components.reclamos.planificacion import render_planificacion_grupos
 from components.reclamos.cierre import render_cierre_reclamos
 from components.clientes.gestion import render_gestion_clientes
 from components.resumen_jornada import render_resumen_jornada
-from .components.auth import check_authentication, render_login_form, auth_has_permission, render_user_info
+from components.auth import check_authentication, render_login_form, auth_has_permission, render_user_info
 from components.navigation import render_navigation  # ajustá según las funciones que tenga
 from components.metrics_dashboard import render_metrics_dashboard
 from components.ui import breadcrumb, card, badge, loading_indicator
