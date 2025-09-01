@@ -60,7 +60,7 @@ from components.resumen_jornada import render_resumen_jornada
 from components.notifications import init_notification_manager
 from components.notification_bell import render_notification_bell
 from components.auth import auth_has_permission, check_authentication, render_login_form
-from components.navigation import render_sidebar_navigation, render_user_info
+from components.navigation import render_navigation, render_user_info
 from components.metrics_dashboard import render_metrics_dashboard, metric_card
 from components.ui import breadcrumb, metric_card, card, badge, loading_indicator
 
