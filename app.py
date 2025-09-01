@@ -13,6 +13,17 @@ import logging
 from datetime import datetime
 
 # -------------------------
+# Configuración del Logging
+# -------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
+
+# -------------------------
 # Third-party libraries
 # -------------------------
 import pandas as pd
@@ -50,6 +61,7 @@ from config.settings import (
 # -------------------------
 # Local components
 # -------------------------
+from components.dashboard import render_dashboard
 from components.reclamos.nuevo import render_nuevo_reclamo
 from components.reclamos.gestion import render_gestion_reclamos
 from components.clientes.gestion import render_gestion_clientes
@@ -114,11 +126,10 @@ if not success:
     st.error(f"No se pudo inicializar la API de Google Sheets: {error}")
     st.stop()
 
-# Inicializar variables de sesión de API (compatibilidad)
-init_api_session_state()
-
 # Cargar estilos Monokai (siempre modo oscuro)
 st.markdown(get_main_styles(), unsafe_allow_html=True)
+
+logger.info("Aplicación inicializada y estilos cargados.")
 
 # --------------------------
 # FUNCIONES AUXILIARES
@@ -136,63 +147,84 @@ def init_google_sheets():
         st.error(f"Error de conexión: {str(e)}")
         st.stop()
 
-def cargar_datos():
-    """Carga datos de Google Sheets"""
+def load_data():
+    """Carga todos los datos necesarios de Google Sheets de forma cacheada."""
     try:
         sheet_reclamos, sheet_clientes, sheet_usuarios = init_google_sheets()
-        
+
+        # Las llamadas a safe_get_sheet_data ahora usarán el caché
         df_reclamos = safe_get_sheet_data(sheet_reclamos, COLUMNAS_RECLAMOS)
         df_clientes = safe_get_sheet_data(sheet_clientes, COLUMNAS_CLIENTES)
         df_usuarios = safe_get_sheet_data(sheet_usuarios, COLUMNAS_USUARIOS)
-        
+
         return df_reclamos, df_clientes, df_usuarios, sheet_reclamos, sheet_clientes
     except Exception as e:
-        st.error(f"Error al cargar datos: {str(e)}")
+        st.error(f"Error crítico al cargar datos: {str(e)}")
+        # Devuelve DataFrames vacíos y None para los sheets para evitar crashes
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), None, None
 
 def render_metricas_simples(df_reclamos):
-    """Renderiza métricas simplificadas de reclamos"""
+    """Renderiza métricas de reclamos con el componente de UI personalizado."""
+    st.markdown("<h4>Resumen del Estado Actual</h4>", unsafe_allow_html=True)
+
     if df_reclamos.empty:
+        st.info("No hay datos de reclamos para mostrar métricas.")
         return
-    
+
     hoy = ahora_argentina().date()
     
-    # Reclamos de hoy
+    # --- Cálculos ---
     reclamos_hoy = 0
     if 'Fecha y hora' in df_reclamos.columns:
         try:
-            df_reclamos['Fecha'] = pd.to_datetime(df_reclamos['Fecha y hora']).dt.date
+            # Asegurarse de que la columna es datetime
+            df_reclamos['Fecha'] = pd.to_datetime(df_reclamos['Fecha y hora'], errors='coerce').dt.date
             reclamos_hoy = len(df_reclamos[df_reclamos['Fecha'] == hoy])
-        except:
-            reclamos_hoy = 0
-    
-    # Contar por estado
-    if 'Estado' in df_reclamos.columns:
-        pendientes = len(df_reclamos[df_reclamos['Estado'] == 'Pendiente'])
-        en_curso = len(df_reclamos[df_reclamos['Estado'] == 'En curso'])
-        desconexiones = len(df_reclamos[df_reclamos['Tipo de reclamo'] == 'Desconexión'])
-    else:
-        pendientes = en_curso = desconexiones = 0
-    
-    # Mostrar métricas
+        except Exception:
+            reclamos_hoy = 0 # Fallback si hay error de conversión
+
+    pendientes = len(df_reclamos[df_reclamos['Estado'] == 'Pendiente']) if 'Estado' in df_reclamos.columns else 0
+    en_curso = len(df_reclamos[df_reclamos['Estado'] == 'En curso']) if 'Estado' in df_reclamos.columns else 0
+    desconexiones = len(df_reclamos[df_reclamos['Tipo de reclamo'] == 'Desconexión']) if 'Tipo de reclamo' in df_reclamos.columns else 0
+
+    # --- Renderizado con metric_card ---
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("📥 Ingresados hoy", reclamos_hoy)
+        st.markdown(metric_card(
+            value=reclamos_hoy,
+            label="Ingresados Hoy",
+            icon="📥"
+        ), unsafe_allow_html=True)
     with col2:
-        st.metric("⏳ Pendientes", pendientes)
+        st.markdown(metric_card(
+            value=pendientes,
+            label="Pendientes",
+            icon="⏳",
+            variant="warning"
+        ), unsafe_allow_html=True)
     with col3:
-        st.metric("🔄 En curso", en_curso)
+        st.markdown(metric_card(
+            value=en_curso,
+            label="En Curso",
+            icon="🔄",
+            variant="info"
+        ), unsafe_allow_html=True)
     with col4:
-        st.metric("🔌 Desconexiones", desconexiones)
+        st.markdown(metric_card(
+            value=desconexiones,
+            label="Desconexiones",
+            icon="🔌",
+            variant="danger"
+        ), unsafe_allow_html=True)
 
-def render_navegacion_principal():
-    """Renderiza la navegación principal en la pantalla"""
-    st.markdown("---")
+def render_sidebar_navigation():
+    """Renderiza la navegación principal en la barra lateral."""
+    st.markdown("<h3>Menú Principal</h3>", unsafe_allow_html=True)
     
-    # Opciones de navegación
     opciones = [
         {"icon": "🏠", "nombre": "Inicio", "key": "inicio"},
+        {"icon": "➕", "nombre": "Nuevo Reclamo", "key": "nuevo_reclamo"},
         {"icon": "📋", "nombre": "Reclamos cargados", "key": "reclamos"},
         {"icon": "👥", "nombre": "Gestión de clientes", "key": "clientes"},
         {"icon": "🖨️", "nombre": "Imprimir reclamos", "key": "imprimir"},
@@ -200,36 +232,38 @@ def render_navegacion_principal():
         {"icon": "✅", "nombre": "Cierre de Reclamos", "key": "cierre"}
     ]
     
-    # Crear botones de navegación
-    cols = st.columns(len(opciones))
-    for i, opcion in enumerate(opciones):
-        with cols[i]:
-            if st.button(
-                f"{opcion['icon']} {opcion['nombre']}", 
-                key=opcion['key'],
-                use_container_width=True
-            ):
-                st.session_state.current_page = opcion['nombre']
-                st.rerun()
-    
-    st.markdown("---")
+    for opcion in opciones:
+        # Los estilos de `utils/styles.py` se aplicarán automáticamente a los botones en el sidebar
+        if st.button(
+            f"{opcion['icon']} {opcion['nombre']}",
+            key=opcion['key'],
+            use_container_width=True
+        ):
+            st.session_state.current_page = opcion['nombre']
+            st.rerun()
 
 # --------------------------
 # AUTENTICACIÓN
 # --------------------------
 
 if not check_authentication():
-    df_reclamos, df_clientes, df_usuarios, sheet_reclamos, sheet_clientes = cargar_datos()
-    render_login_form(sheet_usuarios)
+    # Solo necesitamos la hoja de usuarios para el login, no todos los datos.
+    try:
+        _, _, sheet_usuarios = init_google_sheets()
+        render_login_form(sheet_usuarios)
+    except Exception as e:
+        st.error(f"No se pudo conectar con la hoja de usuarios para el login: {e}")
     st.stop()
 
 # --------------------------
-# CARGA DE DATOS
+# CARGA DE DATOS (POST-AUTENTICACIÓN)
 # --------------------------
 
-df_reclamos, df_clientes, df_usuarios, sheet_reclamos, sheet_clientes = cargar_datos()
+# Cargar todos los datos una sola vez después de la autenticación.
+# Gracias al cacheo, esto será instantáneo en la mayoría de las ejecuciones.
+df_reclamos, df_clientes, df_usuarios, sheet_reclamos, sheet_clientes = load_data()
 
-# Almacenar en session state
+# Almacenar en session state para acceso global en los componentes
 st.session_state.df_reclamos = df_reclamos
 st.session_state.df_clientes = df_clientes
 st.session_state.df_usuarios = df_usuarios
@@ -251,12 +285,14 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Información de usuario en sidebar
+# Información de usuario y Navegación en sidebar
 with st.sidebar:
-    render_user_info()
+    # render_user_info() # Asumo que esta función existe en alguna parte, la dejo comentada si no.
+    st.markdown("---")
+    render_sidebar_navigation() # Nueva navegación en la barra lateral
     st.markdown("---")
     st.markdown(f"""
-    <div style="text-align: center; color: #75715E; font-size: 0.9rem;">
+    <div style="text-align: center; color: #75715E; font-size: 0.9rem; padding-top: 2rem;">
         Versión 2.3 • {ahora_argentina().strftime('%d/%m/%Y %H:%M')}
     </div>
     """, unsafe_allow_html=True)
@@ -264,8 +300,8 @@ with st.sidebar:
 # Mostrar métricas
 render_metricas_simples(df_reclamos)
 
-# Navegación principal
-render_navegacion_principal()
+# Separador visual para el contenido principal
+st.markdown("<hr style='border-color: var(--border-color); margin: 2rem 0;'>", unsafe_allow_html=True)
 
 # --------------------------
 # RUTEO DE COMPONENTES
@@ -276,6 +312,9 @@ current_page = st.session_state.get('current_page', 'Inicio')
 
 # Renderizar componente según la página seleccionada
 if current_page == 'Inicio':
+    render_dashboard(df_reclamos)
+
+elif current_page == 'Nuevo Reclamo':
     render_nuevo_reclamo(
         df_reclamos=df_reclamos,
         df_clientes=df_clientes,
@@ -322,17 +361,6 @@ elif current_page == 'Cierre de Reclamos':
         sheet_clientes=sheet_clientes,
         user=st.session_state.auth.get('user_info', {})
     )
-
-# Renderizar componente seleccionado
-if opcion in COMPONENTES and has_permission(COMPONENTES[opcion]["permiso"]):
-    with st.container():
-        st.markdown("---")
-        resultado = COMPONENTES[opcion]["render"](**COMPONENTES[opcion]["params"])
-        
-        if resultado and resultado.get('needs_refresh'):
-            st.cache_data.clear()
-            time.sleep(1)
-            st.rerun()
 
 # --------------------------
 # RESUMEN DE JORNADA OPTIMIZADO

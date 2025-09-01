@@ -21,7 +21,15 @@ def render_notification_bell():
     # Ícono en el sidebar
     with st.sidebar:
         col1, col2 = st.columns([1, 3])
-        col1.markdown(f"🔔 **{unread_count}**" if unread_count > 0 else "🔔")
+
+        # Aplicar animación si hay notificaciones sin leer
+        animation_class = "notification-shake" if unread_count > 0 else ""
+        bell_html = f"""
+        <div class='{animation_class}' style='display: inline-block; font-size: 1.2rem; padding: 0.5rem;'>
+            🔔 <b>{unread_count}</b>
+        </div>
+        """
+        col1.markdown(bell_html if unread_count > 0 else "🔔", unsafe_allow_html=True)
         
         if col2.button("Ver notificaciones"):
             st.session_state.show_notifications = not st.session_state.get('show_notifications', False)

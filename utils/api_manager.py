@@ -4,7 +4,11 @@ Versión final fusionada
 """
 import streamlit as st
 import time
+import logging
 from typing import Any, List, Dict, Union, Optional, Tuple
+from tenacity import retry, wait_exponential, stop_after_attempt, RetryError
+
+logger = logging.getLogger(__name__)
 
 class ApiManager:
     """Gestor de operaciones seguras con Google Sheets API"""
@@ -58,10 +62,12 @@ class ApiManager:
             )
             
             self.client = gspread.authorize(creds)
+            logger.info("Cliente de Google Sheets autorizado y API Manager inicializado correctamente.")
             return True, None
             
         except Exception as e:
             self.client = None
+            logger.critical(f"Fallo catastrófico al inicializar la API de Google Sheets: {e}", exc_info=True)
             return False, f"Error inicializando API: {str(e)}"
 
     def open_sheet(self, sheet_id: str, worksheet_name: str):
@@ -76,8 +82,17 @@ class ApiManager:
             st.error(f"Error abriendo hoja {worksheet_name}: {str(e)}")
             return None
 
+    @retry(
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        stop=stop_after_attempt(3),
+        before_sleep=lambda retry_state: logger.warning(
+            f"Reintentando operación de GSheets: {retry_state.fn.__name__}, intento {retry_state.attempt_number}..."
+        )
+    )
     def safe_sheet_operation(self, func, *args, **kwargs) -> Tuple[Any, Optional[str]]:
-        """Ejecuta operación segura sobre la API con control de rate limiting"""
+        """
+        Ejecuta operación segura sobre la API con control de rate limiting y reintentos.
+        """
         try:
             current_time = time.time()
             time_since_last_call = current_time - self.last_call_time
@@ -90,7 +105,12 @@ class ApiManager:
 
             result = func(*args, **kwargs)
             return result, None
+        except RetryError as e:
+            logger.error(f"La operación de GSheets falló después de varios reintentos: {e}")
+            self.error_count += 1
+            return None, f"Error en operación API después de reintentos: {str(e)}"
         except Exception as e:
+            logger.error(f"Error inesperado en operación de GSheets: {e}", exc_info=True)
             self.error_count += 1
             return None, f"Error en operación API: {str(e)}"
 
@@ -151,10 +171,3 @@ def initialize_api() -> bool:
         st.warning(f"API no inicializada: {error}")
     return success
 
-def init_api_session_state():
-    """Inicializa variables de sesión relacionadas con la API."""
-    if "api_initialized" not in st.session_state:
-        st.session_state.api_initialized = True
-
-# Inicializar al importar
-initialize_api()

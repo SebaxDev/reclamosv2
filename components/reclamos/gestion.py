@@ -151,52 +151,71 @@ def _mostrar_conteo_tipos(df):
                 """, unsafe_allow_html=True)
 
 def _mostrar_filtros_y_tabla(df):
-    """Muestra filtros y tabla de reclamos (no produce cambios)"""
+    """Muestra filtros y tabla de reclamos con paginación."""
     st.markdown("#### 🔍 Filtros de búsqueda")
     
-    # Filtros en columnas
+    # --- Filtros ---
     col1, col2, col3 = st.columns(3)
-    
     with col1:
-        estado = st.selectbox(
-            "Estado", 
-            ["Todos"] + sorted(df["Estado"].dropna().unique())
-        )
-    
+        estado = st.selectbox("Estado", ["Todos"] + sorted(df["Estado"].dropna().unique()))
     with col2:
-        sector = st.selectbox(
-            "Sector", 
-            ["Todos"] + sorted(SECTORES_DISPONIBLES)
-        )
-    
+        sector = st.selectbox("Sector", ["Todos"] + sorted(SECTORES_DISPONIBLES))
     with col3:
-        tipo = st.selectbox(
-            "Tipo de reclamo", 
-            ["Todos"] + sorted(df["Tipo de reclamo"].dropna().unique())
-        )
+        tipo = st.selectbox("Tipo de reclamo", ["Todos"] + sorted(df["Tipo de reclamo"].dropna().unique()))
 
-    # Aplicar filtros
+    # --- Aplicar filtros ---
     df_filtrado = df.copy()
-    if estado != "Todos": 
+    if estado != "Todos":
         df_filtrado = df_filtrado[df_filtrado["Estado"] == estado]
-    if sector != "Todos": 
+    if sector != "Todos":
         df_filtrado = df_filtrado[df_filtrado["Sector"] == str(sector)]
-    if tipo != "Todos": 
+    if tipo != "Todos":
         df_filtrado = df_filtrado[df_filtrado["Tipo de reclamo"] == tipo]
 
-    st.markdown(f"**Mostrando {len(df_filtrado)} de {len(df)} reclamos**")
+    # --- Paginación ---
+    page_size = 15
+    total_records = len(df_filtrado)
+    total_pages = max(1, (total_records + page_size - 1) // page_size)
 
-    # Mostrar tabla optimizada
-    columnas = [
+    if 'page_number' not in st.session_state:
+        st.session_state.page_number = 1
+
+    # Reset page number if filters change and current page is out of bounds
+    if st.session_state.page_number > total_pages:
+        st.session_state.page_number = 1
+
+    page_number = st.session_state.page_number
+
+    start_idx = (page_number - 1) * page_size
+    end_idx = start_idx + page_size
+    df_paginado = df_filtrado.iloc[start_idx:end_idx]
+
+    # --- Controles de Paginación ---
+    st.markdown(f"**Mostrando {len(df_paginado)} de {total_records} reclamos**")
+
+    p_col1, p_col2, p_col3 = st.columns([2, 1, 2])
+    with p_col1:
+        if st.button("⬅️ Anterior", use_container_width=True, disabled=(page_number <= 1)):
+            st.session_state.page_number -= 1
+            st.rerun()
+    with p_col2:
+        st.markdown(f"<div style='text-align: center; padding-top: 0.5rem;'>Página {page_number}/{total_pages}</div>", unsafe_allow_html=True)
+    with p_col3:
+        if st.button("Siguiente ➡️", use_container_width=True, disabled=(page_number >= total_pages)):
+            st.session_state.page_number += 1
+            st.rerun()
+
+    # --- Mostrar tabla ---
+    columnas_display = [
         "Fecha_formateada", "Nº Cliente", "Nombre", 
         "Sector", "Tipo de reclamo", "Teléfono", "Estado"
     ]
+    df_display = df_paginado[columnas_display].rename(columns={"Fecha_formateada": "Fecha y hora"})
     
     st.dataframe(
-        df_filtrado[columnas].rename(columns={"Fecha_formateada": "Fecha y hora"}),
+        df_display,
         use_container_width=True,
-        hide_index=True,
-        height=400
+        hide_index=True
     )
     
     return df_filtrado
@@ -278,6 +297,7 @@ def _mostrar_edicion_reclamo_optimizada(df, sheet_reclamos):
             st.markdown(f"**📞 Teléfono:** {reclamo_seleccionado.get('Teléfono', 'N/A')}")
     
     # Formulario de edición rápido
+    st.markdown('<div class="form-container">', unsafe_allow_html=True)
     with st.form(f"form_editar_rapido_{reclamo_id}"):
         col1, col2 = st.columns(2)
         
@@ -333,15 +353,18 @@ def _mostrar_edicion_reclamo_optimizada(df, sheet_reclamos):
             guardar_rapido = st.form_submit_button(
                 "💾 Guardar cambios rápidos",
                 use_container_width=True,
-                help="Solo cambia estado y técnico"
+                help="Solo cambia estado y técnico",
+                type="secondary"
             )
         
         with col_btn2:
             guardar_completo = st.form_submit_button(
                 "🔄 Guardar todos los campos",
                 use_container_width=True,
-                help="Guarda todos los campos editables"
+                help="Guarda todos los campos editables",
+                type="primary"
             )
+    st.markdown('</div>', unsafe_allow_html=True)
     
     # Procesar acciones
     if guardar_rapido or guardar_completo:
@@ -456,9 +479,11 @@ def _gestionar_desconexiones(df, sheet_reclamos):
                 st.markdown(f"📅 {format_fecha(row['Fecha y hora'])} - Sector {row['Sector']}")
             
             with col2:
+                st.markdown('<div class="btn-success-container">', unsafe_allow_html=True)
                 if st.button("✅ Marcar como resuelto", key=f"resuelto_{i}", use_container_width=True):
                     if _marcar_desconexion_como_resuelta(row, sheet_reclamos):
                         cambios = True
+                st.markdown('</div>', unsafe_allow_html=True)
             
             st.divider()
     

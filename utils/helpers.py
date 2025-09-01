@@ -4,6 +4,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import pytz
+import re
 
 # ==================== MANEJO DE FECHAS Y HORAS ====================
 
@@ -89,7 +90,7 @@ def truncate_text(text, max_length=50, ellipsis="..."):
     if len(text_str) <= max_length:
         return text_str
     
-    return text_str[:max_length - len(ellipsis)] + ellipsis
+    return text_str[:max_length - len(ellipsis)].strip() + ellipsis
 
 def format_currency(amount, symbol="$", decimals=2):
     """Formatea un monto como currency argentino"""

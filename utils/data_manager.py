@@ -4,11 +4,15 @@ Versión mejorada con manejo robusto de datos
 """
 import pandas as pd
 import streamlit as st
+import logging
 from utils.api_manager import api_manager
 
+logger = logging.getLogger(__name__)
+
+@st.cache_data(ttl=600)
 def safe_get_sheet_data(_sheet, columnas=None):
     """
-    Carga datos de una hoja de cálculo de forma segura
+    Carga datos de una hoja de cálculo de forma segura, con cacheo.
     
     Args:
         _sheet: Objeto de hoja de Google Sheets
@@ -18,9 +22,12 @@ def safe_get_sheet_data(_sheet, columnas=None):
         DataFrame con los datos o DataFrame vacío en caso de error
     """
     try:
+        sheet_name = _sheet.title
+        logger.info(f"Intentando obtener datos para la hoja '{sheet_name}'. Esta llamada debería estar cacheada.")
         # Obtener todos los valores de la hoja
         data, error = api_manager.safe_sheet_operation(_sheet.get_all_values)
         if error:
+            logger.error(f"Error al obtener datos de la hoja '{sheet_name}': {error}")
             st.error(f"Error al obtener datos: {error}")
             return pd.DataFrame(columns=columnas or [])
         
