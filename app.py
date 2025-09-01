@@ -220,7 +220,7 @@ def render_navegacion_principal():
 
 if not check_authentication():
     df_reclamos, df_clientes, df_usuarios, sheet_reclamos, sheet_clientes = cargar_datos()
-    render_login_form(df_usuarios)
+    render_login_form(sheet_usuarios)
     st.stop()
 
 # --------------------------
