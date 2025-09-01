@@ -22,9 +22,15 @@ class ApiManager:
             from google.oauth2 import service_account
             import gspread
 
-            # Cargar credenciales desde secrets
+            # Si secrets tiene clave 'gcp_service_account', úsala. 
+            # Si no, usa el secrets entero (caso Streamlit Cloud JSON pegado).
+            if "gcp_service_account" in st.secrets:
+                creds_info = st.secrets["gcp_service_account"]
+            else:
+                creds_info = dict(st.secrets)
+
             creds = service_account.Credentials.from_service_account_info(
-                st.secrets["gcp_service_account"],
+                creds_info,
                 scopes=["https://www.googleapis.com/auth/spreadsheets"]
             )
             self.client = gspread.authorize(creds)
