@@ -108,8 +108,14 @@ st.set_page_config(
 # INICIALIZACIÓN
 # --------------------------
 
-# Inicializar API manager
-api_manager.initialize()
+# Inicializar API manager correctamente
+success, error = api_manager.initialize()
+if not success:
+    st.error(f"No se pudo inicializar la API de Google Sheets: {error}")
+    st.stop()
+
+# Inicializar variables de sesión de API (compatibilidad)
+init_api_session_state()
 
 # Cargar estilos Monokai (siempre modo oscuro)
 st.markdown(get_main_styles(), unsafe_allow_html=True)

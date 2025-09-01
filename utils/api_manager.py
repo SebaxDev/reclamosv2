@@ -187,9 +187,6 @@ def initialize_api():
         st.warning(f"API no inicializada: {error}")
     return success
 
-# Inicializar al importar
-initialize_api()
-
 def init_api_session_state():
     """
     Compatibilidad: Inicializa variables de sesión relacionadas con la API.
