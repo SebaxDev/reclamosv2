@@ -193,3 +193,11 @@ def update_cell(sheet, row, col, value):
 
 # Alias para compatibilidad con código existente
 safe_normalize = lambda df, column: df  # Función simplificada ya que pandas maneja bien los tipos
+
+def update_sheet_data(sheet, data, is_batch=True):
+    """
+    Compatibilidad: Actualiza datos en una hoja con control de rate limiting.
+    Ahora se implementa usando clear_and_populate_sheet.
+    """
+    # data debe ser lista de listas (incluyendo headers en la primera fila)
+    return clear_and_populate_sheet(sheet, data)
