@@ -1,11 +1,10 @@
 """
-Módulo para gestión segura de la API de Google Sheets
-Versión optimizada con manejo robusto de errores
+Módulo para gestión segura de datos con Google Sheets
+Versión 3.2 - Con manejo robusto de errores y compatibilidad con API
 """
-
-import time
 import streamlit as st
-from typing import Any, Tuple, Optional, List, Dict, Union
+import time
+from typing import List, Dict, Union, Optional
 
 class ApiManager:
     """Gestor de operaciones seguras con Google Sheets API"""

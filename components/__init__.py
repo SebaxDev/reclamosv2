@@ -1,1 +1,1 @@
-# Paquete de componentes
+# Componentes modulares de la aplicación

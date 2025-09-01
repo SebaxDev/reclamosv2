@@ -1,13 +1,16 @@
 """
-Sistema de autenticación profesional con diseño estilo Facebook
-y tema Monokai completo
+Componente de autenticación profesional estilo CRM
+Versión mejorada con diseño elegante
 """
-
 import streamlit as st
-import time
 from utils.data_manager import safe_get_sheet_data
+from config.settings import (
+    WORKSHEET_USUARIOS,
+    COLUMNAS_USUARIOS,
+    PERMISOS_POR_ROL
+)
+import time
 from utils.styles import get_loading_spinner
-from config.settings import WORKSHEET_USUARIOS, COLUMNAS_USUARIOS, PERMISOS_POR_ROL
 
 def init_auth_session():
     """Inicializa las variables de sesión de autenticación"""

@@ -3,6 +3,7 @@
 import streamlit as st
 import uuid
 from utils.date_utils import format_fecha
+from config.settings import NOTIFICATION_TYPES
 from components.notifications import get_cached_notifications
 
 def render_notification_bell():

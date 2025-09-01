@@ -1,21 +1,21 @@
 # --------------------------------------------------
-# Aplicación principal de gestión de reclamos - Versión Simplificada
-# Tema Monokai oscuro forzado - Navegación en pantalla principal
+# Aplicación principal de gestión de reclamos optimizada
+# Versión 2.3 - Diseño optimizado para rendimiento
 # --------------------------------------------------
 
 # Standard library
 import io
 import json
 import time
-import logging
 from datetime import datetime
+import logging
 
 # Third-party
 import pandas as pd
 import pytz
 import streamlit as st
-import gspread
 from google.oauth2 import service_account
+import gspread
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from streamlit_lottie import st_lottie
@@ -25,11 +25,13 @@ from tenacity import retry, wait_exponential, stop_after_attempt
 from config.settings import (
     SHEET_ID,
     WORKSHEET_RECLAMOS,
-    WORKSHEET_CLIENTES,
+    WORKSHEET_CLIENTES, 
     WORKSHEET_USUARIOS,
     COLUMNAS_RECLAMOS,
     COLUMNAS_CLIENTES,
     COLUMNAS_USUARIOS,
+    WORKSHEET_NOTIFICACIONES,
+    NOTIFICATION_TYPES,
     COLUMNAS_NOTIFICACIONES,
     SECTORES_DISPONIBLES,
     TIPOS_RECLAMO,
@@ -42,29 +44,21 @@ from config.settings import (
 # Local components
 from components.reclamos.nuevo import render_nuevo_reclamo
 from components.reclamos.gestion import render_gestion_reclamos
+from components.clientes.gestion import render_gestion_clientes
 from components.reclamos.impresion import render_impresion_reclamos
 from components.reclamos.planificacion import render_planificacion_grupos
 from components.reclamos.cierre import render_cierre_reclamos
-from components.clientes.gestion import render_gestion_clientes
 from components.resumen_jornada import render_resumen_jornada
-from .components.auth import (
-    check_authentication,
-    render_login_form,
-    auth_has_permission,
-    render_user_info
-)
-from components.navigation import render_navigation  # ajustá según las funciones que tenga
-from components.metrics_dashboard import render_metrics_dashboard
-from components.ui import breadcrumb, card, badge, loading_indicator
+from components.notifications import init_notification_manager
+from components.notification_bell import render_notification_bell
+from components.auth import has_permission, check_authentication, render_login
+from components.navigation import render_sidebar_navigation, render_user_info
+from components.metrics_dashboard import render_metrics_dashboard, metric_card
+from components.ui import breadcrumb, metric_card, card, badge, loading_indicator
+from utils.helpers import show_warning, show_error, show_success, show_info, format_phone_number, format_dni, get_current_datetime, format_datetime, truncate_text, is_valid_email, safe_float_conversion, safe_int_conversion, get_status_badge, format_currency, get_breadcrumb_icon
 
 # Utils
-from utils.helpers import (
-    show_warning, show_error, show_success, show_info,
-    format_phone_number, format_dni, get_current_datetime, format_datetime,
-    truncate_text, is_valid_email, safe_float_conversion, safe_int_conversion,
-    get_status_badge, format_currency, get_breadcrumb_icon
-)
-from utils.styles import get_main_styles, get_loading_spinner
+from utils.styles import get_main_styles, get_loading_spinner, loading_indicator
 from utils.data_manager import safe_get_sheet_data, safe_normalize, update_sheet_data, batch_update_sheet
 from utils.api_manager import api_manager, init_api_session_state
 from utils.pdf_utils import agregar_pie_pdf
@@ -292,17 +286,20 @@ elif current_page == 'Cierre de Reclamos':
         user=st.session_state.auth.get('user_info', {})
     )
 
+# Renderizar componente seleccionado
+if opcion in COMPONENTES and has_permission(COMPONENTES[opcion]["permiso"]):
+    with st.container():
+        st.markdown("---")
+        resultado = COMPONENTES[opcion]["render"](**COMPONENTES[opcion]["params"])
+        
+        if resultado and resultado.get('needs_refresh'):
+            st.cache_data.clear()
+            time.sleep(1)
+            st.rerun()
+
 # --------------------------
-# FOOTER
+# RESUMEN DE JORNADA OPTIMIZADO
 # --------------------------
 with st.container():
     render_resumen_jornada(df_reclamos)
     st.markdown('</div>', unsafe_allow_html=True)
-st.markdown("""
-<div style="text-align: center; color: #75715E; font-size: 0.9rem; padding: 1rem;">
-    Desarrollado por Sebastián Andrés • 
-    <a href="https://instagram.com/mellamansebax" target="_blank" style="color: #66D9EF; text-decoration: none;">
-        @mellamansebax
-    </a>
-</div>
-""", unsafe_allow_html=True)

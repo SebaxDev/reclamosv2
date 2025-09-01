@@ -1,18 +1,17 @@
 """
-Componente de navegación horizontal para pantalla principal
-Diseño optimizado para tema Monokai
+Componente de navegación profesional con iconos y estados activos
+Versión 3.0 - Diseño CRM profesional
 """
-
 import streamlit as st
-from utils.helpers import get_page_icon
-from config.settings import OPCIONES_PERMISOS
+from utils.styles import get_main_styles_v2, get_loading_spinner, loading_indicator
+from utils.permissions import has_permission
 
 def render_main_navigation():
     """
-    Renderiza la navegación horizontal principal con estilo Monokai
+    Renderiza la navegacion horizontal principal con estilo Monokai
     """
     
-    # Obtener página actual
+    # Obtener pagina actual
     current_page = st.session_state.get('current_page', 'Inicio')
     
     st.markdown("""
@@ -32,22 +31,22 @@ def render_main_navigation():
             gap: 0.5rem;
             font-family: 'Fira Code', monospace;
         ">
-            <span style="font-size: 1.5rem;">🧭</span>
-            Navegación Principal
+            <span style="font-size: 1.5rem;">??</span>
+            Navegacion Principal
         </h3>
     """, unsafe_allow_html=True)
     
-    # Opciones de navegación
+    # Opciones de navegacion
     opciones_navegacion = [
-        {"key": "Inicio", "icon": "🏠", "label": "Inicio"},
-        {"key": "Reclamos cargados", "icon": "📋", "label": "Reclamos"},
-        {"key": "Gestión de clientes", "icon": "👥", "label": "Clientes"},
-        {"key": "Imprimir reclamos", "icon": "🖨️", "label": "Imprimir"},
-        {"key": "Seguimiento técnico", "icon": "🔧", "label": "Técnico"},
-        {"key": "Cierre de Reclamos", "icon": "✅", "label": "Cierre"}
+        {"key": "Inicio", "icon": "??", "label": "Inicio"},
+        {"key": "Reclamos cargados", "icon": "??", "label": "Reclamos"},
+        {"key": "Gestion de clientes", "icon": "??", "label": "Clientes"},
+        {"key": "Imprimir reclamos", "icon": "???", "label": "Imprimir"},
+        {"key": "Seguimiento tecnico", "icon": "??", "label": "Tecnico"},
+        {"key": "Cierre de Reclamos", "icon": "?", "label": "Cierre"}
     ]
     
-    # Crear columnas para los botones de navegación
+    # Crear columnas para los botones de navegacion
     cols = st.columns(len(opciones_navegacion))
     
     for i, item in enumerate(opciones_navegacion):
@@ -57,10 +56,10 @@ def render_main_navigation():
             if permiso_requerido and not st.session_state.get('auth', {}).get('user_info', {}).get('permisos', []):
                 continue
                 
-            # Determinar si es la página activa
+            # Determinar si es la pagina activa
             is_active = current_page == item["key"]
             
-            # Estilos dinámicos
+            # Estilos dinamicos
             button_bg = "var(--gradient-primary)" if is_active else "var(--bg-surface)"
             text_color = "#272822" if is_active else "var(--text-primary)"
             border_color = "var(--primary-color)" if is_active else "var(--border-color)"
@@ -74,7 +73,7 @@ def render_main_navigation():
                 st.session_state.current_page = item["key"]
                 st.rerun()
             
-            # Aplicar estilos CSS al botón
+            # Aplicar estilos CSS al boton
             st.markdown(f"""
             <style>
             div[data-testid="stButton"] > button[kind="secondary"] {{
@@ -98,14 +97,14 @@ def render_main_navigation():
 
 def render_quick_actions():
     """
-    Renderiza acciones rápidas debajo de la navegación principal
+    Renderiza acciones rapidas debajo de la navegacion principal
     """
     
     quick_actions = [
-        {"icon": "⚡", "label": "Nuevo Reclamo", "action": "nuevo_reclamo"},
-        {"icon": "📈", "label": "Dashboard", "action": "dashboard"},
-        {"icon": "🔍", "label": "Buscar", "action": "buscar"},
-        {"icon": "📅", "label": "Hoy", "action": "hoy"}
+        {"icon": "?", "label": "Nuevo Reclamo", "action": "nuevo_reclamo"},
+        {"icon": "??", "label": "Dashboard", "action": "dashboard"},
+        {"icon": "??", "label": "Buscar", "action": "buscar"},
+        {"icon": "??", "label": "Hoy", "action": "hoy"}
     ]
     
     st.markdown("""
@@ -122,11 +121,11 @@ def render_quick_actions():
             font-family: 'Fira Code', monospace;
             font-size: 0.9rem;
         ">
-            🚀 Acciones Rápidas
+            ?? Acciones Rapidas
         </h4>
     """, unsafe_allow_html=True)
     
-    # Botones de acciones rápidas
+    # Botones de acciones rapidas
     cols = st.columns(len(quick_actions))
     
     for i, action in enumerate(quick_actions):
@@ -143,7 +142,7 @@ def render_quick_actions():
 
 def handle_quick_action(action):
     """
-    Maneja las acciones rápidas
+    Maneja las acciones rapidas
     """
     action_handlers = {
         "nuevo_reclamo": lambda: st.session_state.update({"current_page": "Inicio", "focus_form": True}),
@@ -158,7 +157,7 @@ def handle_quick_action(action):
 
 def render_breadcrumb():
     """
-    Renderiza el breadcrumb de navegación
+    Renderiza el breadcrumb de navegacion
     """
     current_page = st.session_state.get('current_page', 'Inicio')
     
@@ -174,7 +173,7 @@ def render_breadcrumb():
         margin: 1rem 0 2rem 0;
         font-family: 'Fira Code', monospace;
     ">
-        <span style="color: var(--text-muted);">📋</span>
+        <span style="color: var(--text-muted);">??</span>
         <span style="color: var(--text-secondary);">Fusion CRM</span>
         <span style="color: var(--text-muted);">/</span>
         <span style="color: var(--primary-color); font-weight: 600;">{get_page_icon(current_page)} {current_page}</span>
@@ -183,7 +182,7 @@ def render_breadcrumb():
 
 def render_mobile_navigation():
     """
-    Renderiza navegación optimizada para móviles
+    Renderiza navegacion optimizada para moviles
     """
     if st.session_state.get('is_mobile', False):
         st.markdown("""
@@ -200,10 +199,10 @@ def render_mobile_navigation():
         """, unsafe_allow_html=True)
         
         mobile_items = [
-            {"key": "Inicio", "icon": "🏠", "label": "Inicio"},
-            {"key": "Reclamos cargados", "icon": "📋", "label": "Reclamos"},
-            {"key": "Gestión de clientes", "icon": "👥", "label": "Clientes"},
-            {"key": "Cierre de Reclamos", "icon": "✅", "label": "Cierre"}
+            {"key": "Inicio", "icon": "??", "label": "Inicio"},
+            {"key": "Reclamos cargados", "icon": "??", "label": "Reclamos"},
+            {"key": "Gestion de clientes", "icon": "??", "label": "Clientes"},
+            {"key": "Cierre de Reclamos", "icon": "?", "label": "Cierre"}
         ]
         
         cols = st.columns(len(mobile_items))
@@ -221,9 +220,9 @@ def render_mobile_navigation():
         
         st.markdown("</div>", unsafe_allow_html=True)
 
-# Función de compatibilidad
+# Funcion de compatibilidad
 def render_navigation():
     """
-    Función de compatibilidad para navegación anterior
+    Funcion de compatibilidad para navegacion anterior
     """
     return render_main_navigation()

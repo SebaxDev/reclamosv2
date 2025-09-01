@@ -5,7 +5,7 @@ import pandas as pd
 import pytz
 from datetime import datetime, timedelta
 from utils.date_utils import format_fecha, ahora_argentina
-from config.settings import DEBUG_MODE
+from config.settings import NOTIFICATION_TYPES, DEBUG_MODE
 
 def render_resumen_jornada(df_reclamos):
     """Muestra el resumen de la jornada en el footer (versión mejorada)"""

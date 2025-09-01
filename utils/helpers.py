@@ -1,11 +1,7 @@
-"""
-Funciones utilitarias para Fusion CRM
-Versión optimizada y organizada
-"""
+# helpers.py - Funciones utilitarias para la aplicación
 
 import streamlit as st
 import pandas as pd
-import re
 from datetime import datetime
 import pytz
 

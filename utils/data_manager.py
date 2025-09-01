@@ -1,8 +1,7 @@
 """
-Gestor de datos optimizado para Google Sheets
-Versión simplificada y robusta
+Gestor de datos para operaciones con Google Sheets
+Versión mejorada con manejo robusto de datos
 """
-
 import pandas as pd
 import streamlit as st
 from utils.api_manager import api_manager
