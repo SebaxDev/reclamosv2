@@ -11,6 +11,10 @@ def ahora_argentina():
     """Obtiene la fecha y hora actual de Argentina"""
     return datetime.now(pytz.timezone('America/Argentina/Buenos_Aires'))
 
+def get_current_datetime():
+    """Compatibilidad: devuelve la fecha y hora actual de Argentina"""
+    return ahora_argentina()
+
 def format_datetime(dt, format_str='%d/%m/%Y %H:%M'):
     """Formatea un datetime object a string"""
     if pd.isna(dt) or not isinstance(dt, datetime):
