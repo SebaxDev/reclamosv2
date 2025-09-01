@@ -4,7 +4,7 @@ Versión 3.2 - Con manejo robusto de errores y compatibilidad con API
 """
 import streamlit as st
 import time
-from typing import List, Dict, Union, Optional
+from typing import Any, List, Dict, Union, Optional, Tuple
 
 class ApiManager:
     """Gestor de operaciones seguras con Google Sheets API"""

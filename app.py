@@ -3,29 +3,35 @@
 # Versión 2.3 - Diseño optimizado para rendimiento
 # --------------------------------------------------
 
+# -------------------------
 # Standard library
+# -------------------------
 import io
 import json
 import time
-from datetime import datetime
 import logging
+from datetime import datetime
 
-# Third-party
+# -------------------------
+# Third-party libraries
+# -------------------------
 import pandas as pd
 import pytz
 import streamlit as st
-from google.oauth2 import service_account
 import gspread
+from google.oauth2 import service_account
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from streamlit_lottie import st_lottie
 from tenacity import retry, wait_exponential, stop_after_attempt
 
-# Config
+# -------------------------
+# Configuración
+# -------------------------
 from config.settings import (
     SHEET_ID,
     WORKSHEET_RECLAMOS,
-    WORKSHEET_CLIENTES, 
+    WORKSHEET_CLIENTES,
     WORKSHEET_USUARIOS,
     COLUMNAS_RECLAMOS,
     COLUMNAS_CLIENTES,
@@ -38,10 +44,12 @@ from config.settings import (
     TECNICOS_DISPONIBLES,
     MATERIALES_POR_RECLAMO,
     ROUTER_POR_SECTOR,
-    DEBUG_MODE
+    DEBUG_MODE,
 )
 
+# -------------------------
 # Local components
+# -------------------------
 from components.reclamos.nuevo import render_nuevo_reclamo
 from components.reclamos.gestion import render_gestion_reclamos
 from components.clientes.gestion import render_gestion_clientes
@@ -55,11 +63,34 @@ from components.auth import has_permission, check_authentication, render_login
 from components.navigation import render_sidebar_navigation, render_user_info
 from components.metrics_dashboard import render_metrics_dashboard, metric_card
 from components.ui import breadcrumb, metric_card, card, badge, loading_indicator
-from utils.helpers import show_warning, show_error, show_success, show_info, format_phone_number, format_dni, get_current_datetime, format_datetime, truncate_text, is_valid_email, safe_float_conversion, safe_int_conversion, get_status_badge, format_currency, get_breadcrumb_icon
 
+# -------------------------
 # Utils
+# -------------------------
+from utils.helpers import (
+    show_warning,
+    show_error,
+    show_success,
+    show_info,
+    format_phone_number,
+    format_dni,
+    get_current_datetime,
+    format_datetime,
+    truncate_text,
+    is_valid_email,
+    safe_float_conversion,
+    safe_int_conversion,
+    get_status_badge,
+    format_currency,
+    get_breadcrumb_icon,
+)
 from utils.styles import get_main_styles, get_loading_spinner, loading_indicator
-from utils.data_manager import safe_get_sheet_data, safe_normalize, update_sheet_data, batch_update_sheet
+from utils.data_manager import (
+    safe_get_sheet_data,
+    safe_normalize,
+    update_sheet_data,
+    batch_update_sheet,
+)
 from utils.api_manager import api_manager, init_api_session_state
 from utils.pdf_utils import agregar_pie_pdf
 from utils.date_utils import parse_fecha, es_fecha_valida, format_fecha, ahora_argentina
