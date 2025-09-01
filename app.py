@@ -112,7 +112,7 @@ st.set_page_config(
 api_manager.initialize()
 
 # Cargar estilos Monokai (siempre modo oscuro)
-st.markdown(get_main_styles(dark_mode=True), unsafe_allow_html=True)
+st.markdown(get_main_styles(), unsafe_allow_html=True)
 
 # --------------------------
 # FUNCIONES AUXILIARES
