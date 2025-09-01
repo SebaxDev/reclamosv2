@@ -189,3 +189,10 @@ def initialize_api():
 
 # Inicializar al importar
 initialize_api()
+
+def init_api_session_state():
+    """
+    Compatibilidad: Inicializa variables de sesión relacionadas con la API.
+    """
+    if "api_initialized" not in st.session_state:
+        st.session_state.api_initialized = True
