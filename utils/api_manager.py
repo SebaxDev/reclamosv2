@@ -22,19 +22,44 @@ class ApiManager:
             from google.oauth2 import service_account
             import gspread
 
-            # Si secrets tiene clave 'gcp_service_account', úsala. 
-            # Si no, usa el secrets entero (caso Streamlit Cloud JSON pegado).
+            # Debug: verificar qué claves están disponibles en secrets
+            available_keys = list(st.secrets.keys()) if st.secrets else []
+            
+            # Intentar diferentes configuraciones de secrets
+            creds_info = None
+            
+            # Opción 1: Buscar sección gcp_service_account
             if "gcp_service_account" in st.secrets:
-                creds_info = st.secrets["gcp_service_account"]
-            else:
+                creds_info = dict(st.secrets["gcp_service_account"])
+                
+            # Opción 2: Usar secrets directamente si tiene las claves necesarias
+            elif all(key in st.secrets for key in ["type", "project_id", "private_key", "client_email"]):
                 creds_info = dict(st.secrets)
-
+                
+            # Opción 3: Buscar otras posibles secciones
+            elif "google_service_account" in st.secrets:
+                creds_info = dict(st.secrets["google_service_account"])
+                
+            if not creds_info:
+                error_msg = f"No se encontraron credenciales válidas. Claves disponibles: {available_keys}"
+                return False, error_msg
+            
+            # Verificar campos obligatorios
+            required_fields = ["type", "project_id", "private_key", "client_email"]
+            missing_fields = [field for field in required_fields if field not in creds_info]
+            
+            if missing_fields:
+                return False, f"Campos obligatorios faltantes: {missing_fields}"
+            
+            # Crear credenciales
             creds = service_account.Credentials.from_service_account_info(
                 creds_info,
                 scopes=["https://www.googleapis.com/auth/spreadsheets"]
             )
+            
             self.client = gspread.authorize(creds)
             return True, None
+            
         except Exception as e:
             self.client = None
             return False, f"Error inicializando API: {str(e)}"
