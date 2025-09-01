@@ -137,7 +137,7 @@ def cargar_datos():
         
         df_reclamos = safe_get_sheet_data(sheet_reclamos, COLUMNAS_RECLAMOS)
         df_clientes = safe_get_sheet_data(sheet_clientes, COLUMNAS_CLIENTES)
-        df_usuarios = safe_get_sheet_data(sheet_usuarios, ['Email', 'Nombre', 'Rol'])
+        df_usuarios = safe_get_sheet_data(sheet_usuarios, COLUMNAS_USUARIOS)
         
         return df_reclamos, df_clientes, df_usuarios, sheet_reclamos, sheet_clientes
     except Exception as e:
