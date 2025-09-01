@@ -7,15 +7,15 @@
 import io
 import json
 import time
-from datetime import datetime
 import logging
+from datetime import datetime
 
 # Third-party
 import pandas as pd
 import pytz
 import streamlit as st
-from google.oauth2 import service_account
 import gspread
+from google.oauth2 import service_account
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from streamlit_lottie import st_lottie
@@ -25,7 +25,7 @@ from tenacity import retry, wait_exponential, stop_after_attempt
 from config.settings import (
     SHEET_ID,
     WORKSHEET_RECLAMOS,
-    WORKSHEET_CLIENTES, 
+    WORKSHEET_CLIENTES,
     WORKSHEET_USUARIOS,
     COLUMNAS_RECLAMOS,
     COLUMNAS_CLIENTES,
@@ -40,23 +40,26 @@ from config.settings import (
 )
 
 # Local components
-from components.reclamos.nuevo import *
-from components.reclamos.gestion import *
-from components.clientes.gestion import *
-from components.reclamos.impresion import *
-from components.reclamos.planificacion import *
-from components.reclamos.cierre import *
-from components.resumen_jornada import *
-
-from components.auth import check_authentication, render_login_form
-from components.auth import auth_has_permission
-from components.navigation import *
-from components.metrics_dashboard import render_metrics_dashboard, metric_card
-from components.ui import breadcrumb, metric_card, card, badge, loading_indicator
-from utils.helpers import show_warning, show_error, show_success, show_info, format_phone_number, format_dni, get_current_datetime, format_datetime, truncate_text, is_valid_email, safe_float_conversion, safe_int_conversion, get_status_badge, format_currency, get_breadcrumb_icon
+from components.reclamos.nuevo import render_nuevo_reclamo
+from components.reclamos.gestion import render_gestion_reclamos
+from components.reclamos.impresion import render_impresion_reclamos
+from components.reclamos.planificacion import render_planificacion_grupos
+from components.reclamos.cierre import render_cierre_reclamos
+from components.clientes.gestion import render_gestion_clientes
+from components.resumen_jornada import render_resumen_jornada
+from components.auth import check_authentication, render_login_form, auth_has_permission, render_user_info
+from components.navigation import render_navigation  # ajustá según las funciones que tenga
+from components.metrics_dashboard import render_metrics_dashboard
+from components.ui import breadcrumb, card, badge, loading_indicator
 
 # Utils
-from utils.styles import get_main_styles, get_loading_spinner, loading_indicator
+from utils.helpers import (
+    show_warning, show_error, show_success, show_info,
+    format_phone_number, format_dni, get_current_datetime, format_datetime,
+    truncate_text, is_valid_email, safe_float_conversion, safe_int_conversion,
+    get_status_badge, format_currency, get_breadcrumb_icon
+)
+from utils.styles import get_main_styles, get_loading_spinner
 from utils.data_manager import safe_get_sheet_data, safe_normalize, update_sheet_data, batch_update_sheet
 from utils.api_manager import api_manager, init_api_session_state
 from utils.pdf_utils import agregar_pie_pdf
