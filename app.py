@@ -135,9 +135,11 @@ logger.info("Aplicación inicializada y estilos cargados.")
 # FUNCIONES AUXILIARES
 # --------------------------
 
+@st.cache_resource
 def init_google_sheets():
-    """Inicializa la conexión con Google Sheets"""
+    """Inicializa la conexión con Google Sheets y cachea los objetos de hoja."""
     try:
+        logger.info("Inicializando conexión con Google Sheets (esta operación se cacheará).")
         sheet_reclamos = api_manager.open_sheet(SHEET_ID, WORKSHEET_RECLAMOS)
         sheet_clientes = api_manager.open_sheet(SHEET_ID, WORKSHEET_CLIENTES)
         sheet_usuarios = api_manager.open_sheet(SHEET_ID, WORKSHEET_USUARIOS)
