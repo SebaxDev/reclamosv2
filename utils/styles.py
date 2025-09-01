@@ -209,70 +209,82 @@ def get_main_styles():
         box-shadow: 0 0 0 4px rgba(102, 217, 239, 0.4);
     }}
     
-    /* Botón primario */
-    .stButton > button:first-child {{
+    /* Botón primario (nativo de Streamlit) */
+    [data-testid="stFormSubmitButton"] button, .stButton button[kind="primary"] {{
         background: var(--gradient-primary);
         color: #272822 !important;
         border: 2px solid var(--primary-color);
     }}
     
-    .stButton > button:first-child:hover {{
+    [data-testid="stFormSubmitButton"] button:hover, .stButton button[kind="primary"]:hover {{
         transform: translateY(-3px) scale(1.02);
         box-shadow: var(--shadow-lg);
         background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-color) 100%);
     }}
     
-    .stButton > button:first-child:active {{
-        transform: translateY(-1px);
-        box-shadow: var(--shadow-md);
-    }}
-    
-    /* Botones secundarios */
-    .stButton > button:not(:first-child) {{
+    /* Botón secundario (nativo de Streamlit) */
+    .stButton button[kind="secondary"] {{
         background: transparent;
         color: var(--primary-color) !important;
         border: 2px solid var(--primary-color);
-        backdrop-filter: blur(10px);
     }}
     
-    .stButton > button:not(:first-child):hover {{
+    .stButton button[kind="secondary"]:hover {{
         background: var(--primary-color);
         color: #272822 !important;
         transform: translateY(-3px);
         box-shadow: var(--shadow-lg);
     }}
+
+    /* Contenedores para botones con estilos personalizados */
+    .btn-success-container .stButton > button {{
+        background: var(--gradient-success);
+        color: #272822 !important;
+        border: 2px solid var(--success-color);
+    }}
+    .btn-success-container .stButton > button:hover {{
+        background: linear-gradient(135deg, var(--success-light) 0%, var(--success-color) 100%);
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-lg);
+    }}
     
     /* Botones de éxito */
-    .stButton > button.ui-button-success {{
+    .stButton > button.btn-success {{
         background: var(--gradient-success);
         color: #272822 !important;
         border: 2px solid var(--success-color);
     }}
     
-    .stButton > button.ui-button-success:hover {{
+    .stButton > button.btn-success:hover {{
         background: linear-gradient(135deg, var(--success-light) 0%, var(--success-color) 100%);
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-lg);
     }}
     
     /* Botones de peligro */
-    .stButton > button.ui-button-danger {{
+    .stButton > button.btn-danger {{
         background: var(--gradient-danger);
         color: #272822 !important;
         border: 2px solid var(--danger-color);
     }}
     
-    .stButton > button.ui-button-danger:hover {{
+    .stButton > button.btn-danger:hover {{
         background: linear-gradient(135deg, var(--danger-light) 0%, var(--danger-color) 100%);
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-lg);
     }}
     
     /* Botones de advertencia */
-    .stButton > button.ui-button-warning {{
+    .stButton > button.btn-warning {{
         background: var(--gradient-warning);
         color: #272822 !important;
         border: 2px solid var(--warning-color);
     }}
     
-    .stButton > button.ui-button-warning:hover {{
+    .stButton > button.btn-warning:hover {{
         background: linear-gradient(135deg, var(--warning-light) 0%, var(--warning-color) 100%);
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-lg);
     }}
     
     /* TARJETAS Y CONTENEDORES ELEGANTES MONOKAI */
@@ -310,6 +322,12 @@ def get_main_styles():
     .card:hover::before {{
         opacity: 1;
     }}
+
+    /* Variantes de Tarjetas con bordes de color */
+    .card.card-success {{ border-top: 4px solid var(--success-color); }}
+    .card.card-warning {{ border-top: 4px solid var(--warning-color); }}
+    .card.card-danger {{ border-top: 4px solid var(--danger-color); }}
+    .card.card-info {{ border-top: 4px solid var(--info-color); }}
     
     .card-header {{
         display: flex;
@@ -331,6 +349,15 @@ def get_main_styles():
     .card-content {{
         color: var(--text-secondary);
         line-height: 1.8;
+    }}
+
+    .form-container {{
+        background: var(--bg-surface);
+        padding: 2rem;
+        border-radius: var(--radius-xl);
+        border: 1px solid var(--border-color);
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
     }}
     
     /* FORMULARIOS ELEGANTES MONOKAI */
@@ -449,17 +476,24 @@ def get_main_styles():
     
     .dataframe tbody td {{
         padding: 1.125rem 1.25rem;
-        border-bottom: 1px solid var(--border-light);
-        background: var(--bg-surface);
+        border-bottom: 1px solid var(--border-dark);
+        background: transparent;
         color: var(--text-primary);
-        transition: var(--transition-base);
+        transition: var(--transition-colors);
         font-size: 0.9rem;
+        border-left: 3px solid transparent;
+    }}
+
+    .dataframe tbody tr:nth-child(even) td {{
+        background: rgba(0,0,0,0.1);
     }}
     
     .dataframe tbody tr:hover td {{
         background: var(--bg-hover);
-        transform: scale(1.01);
-        box-shadow: var(--shadow-sm);
+        color: var(--text-primary);
+        border-left: 3px solid var(--primary-color);
+        transform: scale(1.01); /* This might not work well on tables, let's keep it subtle */
+        box-shadow: var(--shadow-lg);
     }}
     
     .dataframe tbody tr:last-child td {{
@@ -635,6 +669,28 @@ def get_main_styles():
     @keyframes glow {{
         from {{ box-shadow: 0 0 5px var(--primary-color); }}
         to {{ box-shadow: 0 0 20px var(--primary-color), 0 0 30px var(--primary-light); }}
+    }}
+
+    .notification-shake {{
+        animation: shake 0.82s cubic-bezier(.36,.07,.19,.97) both;
+        transform: translate3d(0, 0, 0);
+        backface-visibility: hidden;
+        perspective: 1000px;
+    }}
+
+    @keyframes shake {{
+        10%, 90% {{
+            transform: translate3d(-1px, 0, 0);
+        }}
+        20%, 80% {{
+            transform: translate3d(2px, 0, 0);
+        }}
+        30%, 50%, 70% {{
+            transform: translate3d(-4px, 0, 0);
+        }}
+        40%, 60% {{
+            transform: translate3d(4px, 0, 0);
+        }}
     }}
     
     /* RESPONSIVE DESIGN MONOKAI */

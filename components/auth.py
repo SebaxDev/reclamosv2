@@ -242,26 +242,6 @@ def render_login_form(sheet_usuarios):
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Procesar login después del render
-    if st.session_state.login_loading:
-        time.sleep(0.5)  # Pequeña pausa para el efecto visual
-        user_info = verify_credentials(username, password, sheet_usuarios)
-        
-        if user_info:
-            st.session_state.auth = {
-                'logged_in': True,
-                'user_info': user_info
-            }
-            st.session_state.login_loading = False
-            st.success(f"✅ Bienvenido, {user_info['nombre']}!")
-            time.sleep(1)
-            st.rerun()
-        else:
-            st.session_state.login_loading = False
-            st.error("❌ Credenciales incorrectas o usuario inactivo")
-            time.sleep(2)
-            st.rerun()
 
 def check_authentication():
     """Verifica si el usuario está autenticado"""

@@ -25,8 +25,8 @@ def card(title, content, icon=None, actions=None):
     
     st.markdown("</div>", unsafe_allow_html=True)
 
-def metric_card(value, label, icon, trend=None, subtitle=None):
-    """Tarjeta de métrica elegante mejorada - OPTIMIZADA PARA ANCHO EXPANDIDO"""
+def metric_card(value, label, icon, trend=None, subtitle=None, variant=None):
+    """Tarjeta de métrica elegante con variantes de color."""
     trend_html = ""
     if trend:
         trend_icon = "📈" if trend['value'].startswith('+') else "📉"
@@ -39,9 +39,10 @@ def metric_card(value, label, icon, trend=None, subtitle=None):
     
     subtitle_html = f"<div style='color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem;'>{subtitle}</div>" if subtitle else ""
     
+    variant_class = f"card-{variant}" if variant else ""
+
     return f"""
-    <div class='card' style='text-align: center; padding: 1.5rem; background: var(--bg-card);
-                            border: 1px solid var(--border-color); border-radius: var(--radius-xl);
+    <div class='card {variant_class}' style='text-align: center; padding: 1.5rem;
                             transition: all 0.3s ease; min-height: 180px; display: flex;
                             flex-direction: column; justify-content: center;'>
         <div style='font-size: 2.5rem; color: var(--primary-color); margin-bottom: 0.75rem;

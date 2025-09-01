@@ -122,7 +122,9 @@ def render_nuevo_reclamo(df_reclamos, df_clientes, sheet_reclamos, sheet_cliente
 # --- FUNCIÓN DE FORMULARIO MEJORADA ---
 def _mostrar_formulario_reclamo(estado, df_clientes, sheet_reclamos, sheet_clientes, current_user):
     """Muestra y procesa el formulario de nuevo reclamo"""
+    st.markdown('<div class="form-container">', unsafe_allow_html=True)
     with st.form("reclamo_formulario", clear_on_submit=False):
+        st.markdown("<h5>Datos del Cliente</h5>", unsafe_allow_html=True)
         col1, col2 = st.columns(2)
 
         # Datos del cliente (existe o nuevo)
@@ -165,6 +167,8 @@ def _mostrar_formulario_reclamo(estado, df_clientes, sheet_reclamos, sheet_clien
                 sector = st.text_input("🔢 Sector (1-17)", placeholder="Ej: 5")
 
         # Campos del reclamo
+        st.markdown("---")
+        st.markdown("<h5>Detalles del Reclamo</h5>", unsafe_allow_html=True)
         tipo_reclamo = st.selectbox("📌 Tipo de Reclamo", TIPOS_RECLAMO)
         detalles = st.text_area("📝 Detalles del Reclamo", placeholder="Describe el problema...", height=100)
 
@@ -183,7 +187,9 @@ def _mostrar_formulario_reclamo(estado, df_clientes, sheet_reclamos, sheet_clien
                 value=current_user or ""
             )
 
-        enviado = st.form_submit_button("✅ Guardar Reclamo", use_container_width=True)
+        enviado = st.form_submit_button("✅ Guardar Reclamo", use_container_width=True, type="primary")
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
     if enviado:
         estado = _procesar_envio_formulario(
