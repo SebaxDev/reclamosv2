@@ -53,7 +53,7 @@ def verify_credentials(username, password, sheet_usuarios):
         st.error(f"Error en autenticación: {str(e)}")
     return None
 
-def render_login(sheet_usuarios):
+def render_login_form(sheet_usuarios):
     """Formulario de login con diseño profesional CRM"""
     
     # CSS personalizado para el login (mantener igual)
@@ -268,7 +268,7 @@ def check_authentication():
     init_auth_session()
     return st.session_state.auth['logged_in']
 
-def has_permission(required_permission):
+def auth_has_permission(required_permission):
     """Verifica permisos del usuario"""
     if not check_authentication():
         return False
